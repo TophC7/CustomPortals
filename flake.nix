@@ -21,15 +21,15 @@
 
             # GLFW + X11 dependencies (Xwayland fallback)
             glfw
-            xorg.libX11
-            xorg.libXcursor
-            xorg.libXrandr
-            xorg.libXinerama
-            xorg.libXi
-            xorg.libXxf86vm
-            xorg.libXext
-            xorg.libXrender
-            xorg.libXtst
+            libx11
+            libxcursor
+            libxrandr
+            libxinerama
+            libxi
+            libxxf86vm
+            libxext
+            libxrender
+            libxtst
 
             # Wayland
             wayland
