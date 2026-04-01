@@ -9,12 +9,13 @@ public class PortalSavedData extends SavedData {
 
     private final PortalRegistry registry = new PortalRegistry();
 
+    private static final Factory<PortalSavedData> FACTORY =
+            new Factory<>(PortalSavedData::new, PortalSavedData::load);
+
     public PortalSavedData() {}
 
     public static PortalSavedData get(ServerLevel level) {
-        return level.getDataStorage().computeIfAbsent(
-                new Factory<>(PortalSavedData::new, PortalSavedData::load),
-                "custom_portals_foxified");
+        return level.getDataStorage().computeIfAbsent(FACTORY, "custom_portals_foxified");
     }
 
     public PortalRegistry getRegistry() {

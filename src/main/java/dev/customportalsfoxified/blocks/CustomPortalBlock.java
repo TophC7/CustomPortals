@@ -3,11 +3,13 @@ package dev.customportalsfoxified.blocks;
 import dev.customportalsfoxified.CustomPortalsFoxified;
 import dev.customportalsfoxified.ModAttachments;
 import dev.customportalsfoxified.ModBlocks;
+import dev.customportalsfoxified.ModItems;
 import dev.customportalsfoxified.data.CustomPortal;
 import dev.customportalsfoxified.data.PortalSavedData;
 import dev.customportalsfoxified.network.SyncPortalColorPayload;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
@@ -16,14 +18,17 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.DyeColor;
-import net.minecraft.world.level.GameRules;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.HalfTransparentBlock;
+import net.minecraft.world.level.block.Portal;
 import net.minecraft.world.level.block.SimpleWaterloggedBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityTicker;
@@ -36,13 +41,14 @@ import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.Fluids;
-import net.minecraft.world.level.block.Portal;
 import net.minecraft.world.level.portal.DimensionTransition;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.ArrayList;
 
 public class CustomPortalBlock extends HalfTransparentBlock
         implements Portal, EntityBlock, SimpleWaterloggedBlock {
@@ -52,7 +58,6 @@ public class CustomPortalBlock extends HalfTransparentBlock
     public static final BooleanProperty LIT = BlockStateProperties.LIT;
     public static final BooleanProperty WATERLOGGED = BlockStateProperties.WATERLOGGED;
 
-    // thin plane shapes matching nether portal
     private static final VoxelShape X_SHAPE = Block.box(0.0, 0.0, 6.0, 16.0, 16.0, 10.0);
     private static final VoxelShape Z_SHAPE = Block.box(6.0, 0.0, 0.0, 10.0, 16.0, 16.0);
 
@@ -85,23 +90,14 @@ public class CustomPortalBlock extends HalfTransparentBlock
 
     // PORTAL INTERFACE //
 
-    // NOTE: the Portal interface is the vanilla/NeoForge-native way to create portals.
-    // vanilla calls getPortalDestination() from Entity.handlePortal() after the
-    // transition timer expires. This replaces the Fabric ServerPlayerMixin entirely,
-    // and since Entity.changeDimension() handles all state sync, backpack mods
-    // and other entity data survive teleportation cleanly.
+    // NOTE: uses vanilla Portal interface so Entity.changeDimension() handles all
+    // state sync — backpack mods and other entity data survive teleportation cleanly.
+    // This replaces the Fabric ServerPlayerMixin approach entirely.
 
     @Override
     public @Nullable DimensionTransition getPortalDestination(ServerLevel level, Entity entity, BlockPos pos) {
         CustomPortal portal = PortalSavedData.get(level).getRegistry().getPortalAt(pos);
-        if (portal == null) {
-            CustomPortalsFoxified.LOGGER.debug("No portal data at {}", pos);
-            return null;
-        }
-        if (!portal.isLinked()) {
-            CustomPortalsFoxified.LOGGER.debug("Portal at {} is not linked", pos);
-            return null;
-        }
+        if (portal == null || !portal.isLinked()) return null;
 
         ServerLevel destLevel = level.getServer().getLevel(portal.getLinkedDimension());
         if (destLevel == null) {
@@ -117,7 +113,6 @@ public class CustomPortalBlock extends HalfTransparentBlock
         }
 
         Vec3 destPos = Vec3.atBottomCenterOf(linked.getSpawnPos());
-        CustomPortalsFoxified.LOGGER.debug("Teleporting {} to {} in {}", entity.getName().getString(), destPos, portal.getLinkedDimension());
         return new DimensionTransition(
                 destLevel, destPos, Vec3.ZERO,
                 entity.getYRot(), entity.getXRot(),
@@ -126,7 +121,6 @@ public class CustomPortalBlock extends HalfTransparentBlock
 
     @Override
     public int getPortalTransitionTime(ServerLevel level, Entity entity) {
-        // haste rune = always 1 tick
         CustomPortal portal = PortalSavedData.get(level).getRegistry()
                 .getPortalAt(entity.blockPosition());
         if (portal != null && portal.hasHaste()) return 1;
@@ -150,7 +144,6 @@ public class CustomPortalBlock extends HalfTransparentBlock
         if (!level.isClientSide() && entity.canUsePortal(false)) {
             entity.setAsInsidePortal(this, pos);
 
-            // sync portal color to client for overlay rendering
             if (entity instanceof ServerPlayer sp) {
                 int colorId = state.getValue(COLOR).getId();
                 if (sp.getData(ModAttachments.PORTAL_COLOR.get()) != colorId) {
@@ -169,6 +162,25 @@ public class CustomPortalBlock extends HalfTransparentBlock
         if (state.getValue(WATERLOGGED)) {
             level.scheduleTick(pos, Fluids.WATER, Fluids.WATER.getTickDelay(level));
         }
+
+        // axis=X → portal plane is X-Y, thin axis is Z (skip north/south)
+        // axis=Z → portal plane is Z-Y, thin axis is X (skip east/west)
+        Direction.Axis portalAxis = state.getValue(AXIS);
+        Direction.Axis thinAxis = portalAxis == Direction.Axis.X ? Direction.Axis.Z : Direction.Axis.X;
+        if (direction.getAxis() != thinAxis && !(neighborState.getBlock() instanceof CustomPortalBlock)) {
+            if (level instanceof ServerLevel serverLevel) {
+                CustomPortal portal = PortalSavedData.get(serverLevel).getRegistry().getPortalAt(pos);
+                if (portal != null) {
+                    // forward lookup (ResourceLocation → Block) is cheaper than
+                    // reverse lookup (Block → ResourceLocation) on every neighbor change
+                    Block expectedBlock = BuiltInRegistries.BLOCK.get(portal.getFrameMaterial());
+                    if (neighborState.getBlock() != expectedBlock) {
+                        return Blocks.AIR.defaultBlockState();
+                    }
+                }
+            }
+        }
+
         return state;
     }
 
@@ -179,14 +191,19 @@ public class CustomPortalBlock extends HalfTransparentBlock
             PortalSavedData data = PortalSavedData.get(serverLevel);
             CustomPortal portal = data.getRegistry().getPortalAt(pos);
             if (portal != null) {
-                // remove all portal blocks in this portal
-                for (BlockPos portalPos : portal.getPortalBlocks()) {
+                Block.popResource(level, pos, new ItemStack(ModItems.CATALYSTS.get(portal.getColor()).get()));
+
+                // unregister BEFORE cascade — clears spatial index so reentrancy
+                // from cascaded onRemove calls won't find this portal again
+                data.getRegistry().removeAndRelink(portal, serverLevel.getServer());
+                data.setDirty();
+
+                // snapshot to avoid iterating a set that cascade removals might touch
+                for (BlockPos portalPos : new ArrayList<>(portal.getPortalBlocks())) {
                     if (!portalPos.equals(pos) && level.getBlockState(portalPos).getBlock() instanceof CustomPortalBlock) {
                         level.removeBlock(portalPos, false);
                     }
                 }
-                data.getRegistry().removeAndRelink(portal, serverLevel.getServer());
-                data.setDirty();
             }
         }
         super.onRemove(state, level, pos, newState, movedByPiston);

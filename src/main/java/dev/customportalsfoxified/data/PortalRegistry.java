@@ -15,16 +15,14 @@ public class PortalRegistry {
 
     private final List<CustomPortal> portals = new ArrayList<>();
     private final Map<BlockPos, CustomPortal> positionIndex = new HashMap<>();
+    private final Map<UUID, CustomPortal> idIndex = new HashMap<>();
 
     public @Nullable CustomPortal getPortalAt(BlockPos pos) {
         return positionIndex.get(pos);
     }
 
     public @Nullable CustomPortal getPortalById(UUID id) {
-        for (CustomPortal portal : portals) {
-            if (portal.getId().equals(id)) return portal;
-        }
-        return null;
+        return idIndex.get(id);
     }
 
     public List<CustomPortal> getAll() {
@@ -33,6 +31,7 @@ public class PortalRegistry {
 
     public void registerPortal(CustomPortal portal) {
         portals.add(portal);
+        idIndex.put(portal.getId(), portal);
         for (BlockPos pos : portal.getPortalBlocks()) {
             positionIndex.put(pos, portal);
         }
@@ -40,6 +39,7 @@ public class PortalRegistry {
 
     public void removePortal(CustomPortal portal) {
         portals.remove(portal);
+        idIndex.remove(portal.getId());
         for (BlockPos pos : portal.getPortalBlocks()) {
             positionIndex.remove(pos);
         }
@@ -53,15 +53,10 @@ public class PortalRegistry {
         for (ServerLevel level : server.getAllLevels()) {
             PortalSavedData data = PortalSavedData.get(level);
             for (CustomPortal candidate : data.getRegistry().getAll()) {
-                CustomPortalsFoxified.LOGGER.debug("Checking link: {} vs {} | sameId={} color={}/{} frame={}/{} linked={}/{}",
-                        portal.getId(), candidate.getId(),
-                        portal.getId().equals(candidate.getId()),
-                        portal.getColor(), candidate.getColor(),
-                        portal.getFrameMaterial(), candidate.getFrameMaterial(),
-                        portal.isLinked(), candidate.isLinked());
                 if (portal.canLinkWith(candidate)) {
                     portal.link(candidate);
                     data.setDirty();
+                    CustomPortalsFoxified.LOGGER.debug("Linked portals {} <-> {}", portal.getId(), candidate.getId());
                     return candidate;
                 }
             }
@@ -73,7 +68,6 @@ public class PortalRegistry {
      * Remove a portal and try to relink its former partner.
      */
     public void removeAndRelink(CustomPortal portal, MinecraftServer server) {
-        // unlink partner first
         if (portal.isLinked()) {
             ServerLevel partnerLevel = server.getLevel(portal.getLinkedDimension());
             if (partnerLevel != null) {
@@ -81,7 +75,6 @@ public class PortalRegistry {
                 CustomPortal partner = partnerData.getRegistry().getPortalById(portal.getLinkedPortalId());
                 if (partner != null) {
                     partner.unlink();
-                    // try to find a new link for the orphaned partner
                     partnerData.getRegistry().tryLinkAcrossAll(partner, server);
                     partnerData.setDirty();
                 }
@@ -103,6 +96,7 @@ public class PortalRegistry {
     public void load(CompoundTag tag) {
         portals.clear();
         positionIndex.clear();
+        idIndex.clear();
         if (tag.contains("portals")) {
             ListTag list = tag.getList("portals", Tag.TAG_COMPOUND);
             for (int i = 0; i < list.size(); i++) {
