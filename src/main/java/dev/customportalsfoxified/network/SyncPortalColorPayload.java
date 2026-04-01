@@ -10,20 +10,21 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 public record SyncPortalColorPayload(int colorId) implements CustomPacketPayload {
 
-    public static final Type<SyncPortalColorPayload> TYPE = new Type<>(
-            ResourceLocation.fromNamespaceAndPath(CustomPortalsFoxified.MOD_ID, "sync_portal_color"));
+  public static final Type<SyncPortalColorPayload> TYPE =
+      new Type<>(
+          ResourceLocation.fromNamespaceAndPath(CustomPortalsFoxified.MOD_ID, "sync_portal_color"));
 
-    public static final StreamCodec<FriendlyByteBuf, SyncPortalColorPayload> STREAM_CODEC =
-            StreamCodec.of(
-                    (buf, p) -> buf.writeVarInt(p.colorId),
-                    buf -> new SyncPortalColorPayload(buf.readVarInt()));
+  public static final StreamCodec<FriendlyByteBuf, SyncPortalColorPayload> STREAM_CODEC =
+      StreamCodec.of(
+          (buf, p) -> buf.writeVarInt(p.colorId),
+          buf -> new SyncPortalColorPayload(buf.readVarInt()));
 
-    public static void handle(SyncPortalColorPayload payload, IPayloadContext context) {
-        context.enqueueWork(() -> ClientPortalState.setOverlayColor(payload.colorId));
-    }
+  public static void handle(SyncPortalColorPayload payload, IPayloadContext context) {
+    context.enqueueWork(() -> ClientPortalState.setOverlayColor(payload.colorId));
+  }
 
-    @Override
-    public Type<? extends CustomPacketPayload> type() {
-        return TYPE;
-    }
+  @Override
+  public Type<? extends CustomPacketPayload> type() {
+    return TYPE;
+  }
 }

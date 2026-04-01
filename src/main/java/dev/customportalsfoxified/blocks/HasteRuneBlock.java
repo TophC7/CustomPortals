@@ -5,15 +5,15 @@ import dev.customportalsfoxified.data.RuneType;
 
 public class HasteRuneBlock extends AbstractRuneBlock {
 
-    public static final MapCodec<HasteRuneBlock> CODEC = simpleCodec(p -> new HasteRuneBlock());
+  public static final MapCodec<HasteRuneBlock> CODEC = simpleCodec(p -> new HasteRuneBlock());
 
-    @Override
-    protected MapCodec<? extends HasteRuneBlock> codec() {
-        return CODEC;
-    }
+  @Override
+  protected MapCodec<? extends HasteRuneBlock> codec() {
+    return CODEC;
+  }
 
-    @Override
-    public RuneType getRuneType() {
-        return RuneType.HASTE;
-    }
+  @Override
+  public RuneType getRuneType() {
+    return RuneType.HASTE;
+  }
 }

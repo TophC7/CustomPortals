@@ -10,20 +10,21 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 public record ScreenTransitionPayload(boolean active) implements CustomPacketPayload {
 
-    public static final Type<ScreenTransitionPayload> TYPE = new Type<>(
-            ResourceLocation.fromNamespaceAndPath(CustomPortalsFoxified.MOD_ID, "screen_transition"));
+  public static final Type<ScreenTransitionPayload> TYPE =
+      new Type<>(
+          ResourceLocation.fromNamespaceAndPath(CustomPortalsFoxified.MOD_ID, "screen_transition"));
 
-    public static final StreamCodec<FriendlyByteBuf, ScreenTransitionPayload> STREAM_CODEC =
-            StreamCodec.of(
-                    (buf, p) -> buf.writeBoolean(p.active),
-                    buf -> new ScreenTransitionPayload(buf.readBoolean()));
+  public static final StreamCodec<FriendlyByteBuf, ScreenTransitionPayload> STREAM_CODEC =
+      StreamCodec.of(
+          (buf, p) -> buf.writeBoolean(p.active),
+          buf -> new ScreenTransitionPayload(buf.readBoolean()));
 
-    public static void handle(ScreenTransitionPayload payload, IPayloadContext context) {
-        context.enqueueWork(() -> ClientPortalState.setTransitioning(payload.active));
-    }
+  public static void handle(ScreenTransitionPayload payload, IPayloadContext context) {
+    context.enqueueWork(() -> ClientPortalState.setTransitioning(payload.active));
+  }
 
-    @Override
-    public Type<? extends CustomPacketPayload> type() {
-        return TYPE;
-    }
+  @Override
+  public Type<? extends CustomPacketPayload> type() {
+    return TYPE;
+  }
 }

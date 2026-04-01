@@ -5,15 +5,16 @@ import dev.customportalsfoxified.data.RuneType;
 
 public class StrongEnhancerRuneBlock extends AbstractRuneBlock {
 
-    public static final MapCodec<StrongEnhancerRuneBlock> CODEC = simpleCodec(p -> new StrongEnhancerRuneBlock());
+  public static final MapCodec<StrongEnhancerRuneBlock> CODEC =
+      simpleCodec(p -> new StrongEnhancerRuneBlock());
 
-    @Override
-    protected MapCodec<? extends StrongEnhancerRuneBlock> codec() {
-        return CODEC;
-    }
+  @Override
+  protected MapCodec<? extends StrongEnhancerRuneBlock> codec() {
+    return CODEC;
+  }
 
-    @Override
-    public RuneType getRuneType() {
-        return RuneType.STRONG_ENHANCER;
-    }
+  @Override
+  public RuneType getRuneType() {
+    return RuneType.STRONG_ENHANCER;
+  }
 }

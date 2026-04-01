@@ -5,15 +5,15 @@ import dev.customportalsfoxified.data.RuneType;
 
 public class GateRuneBlock extends AbstractRuneBlock {
 
-    public static final MapCodec<GateRuneBlock> CODEC = simpleCodec(p -> new GateRuneBlock());
+  public static final MapCodec<GateRuneBlock> CODEC = simpleCodec(p -> new GateRuneBlock());
 
-    @Override
-    protected MapCodec<? extends GateRuneBlock> codec() {
-        return CODEC;
-    }
+  @Override
+  protected MapCodec<? extends GateRuneBlock> codec() {
+    return CODEC;
+  }
 
-    @Override
-    public RuneType getRuneType() {
-        return RuneType.GATE;
-    }
+  @Override
+  public RuneType getRuneType() {
+    return RuneType.GATE;
+  }
 }

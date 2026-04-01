@@ -5,15 +5,15 @@ import dev.customportalsfoxified.data.RuneType;
 
 public class InfinityRuneBlock extends AbstractRuneBlock {
 
-    public static final MapCodec<InfinityRuneBlock> CODEC = simpleCodec(p -> new InfinityRuneBlock());
+  public static final MapCodec<InfinityRuneBlock> CODEC = simpleCodec(p -> new InfinityRuneBlock());
 
-    @Override
-    protected MapCodec<? extends InfinityRuneBlock> codec() {
-        return CODEC;
-    }
+  @Override
+  protected MapCodec<? extends InfinityRuneBlock> codec() {
+    return CODEC;
+  }
 
-    @Override
-    public RuneType getRuneType() {
-        return RuneType.INFINITY;
-    }
+  @Override
+  public RuneType getRuneType() {
+    return RuneType.INFINITY;
+  }
 }
