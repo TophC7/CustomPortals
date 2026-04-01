@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    { "item": "minecraft:amethyst_shard" },
+    { "item": "minecraft:glowstone" }
+  ],
+  "result": {
+    "id": "custom_portals_foxified:strong_enhancer_rune",
+    "count": 1
+  }
+}

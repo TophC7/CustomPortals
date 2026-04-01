@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "custom_portals_foxified:item/light_gray_portal_catalyst"
+  }
+}

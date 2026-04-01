@@ -1,0 +1,240 @@
+package dev.customportalsfoxified.util;
+
+import dev.customportalsfoxified.CustomPortalsFoxified;
+import dev.customportalsfoxified.ModBlocks;
+import dev.customportalsfoxified.blocks.AbstractRuneBlock;
+import dev.customportalsfoxified.blocks.CustomPortalBlock;
+import dev.customportalsfoxified.config.CPConfig;
+import dev.customportalsfoxified.data.CustomPortal;
+import dev.customportalsfoxified.data.PortalSavedData;
+import dev.customportalsfoxified.data.RuneType;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.item.DyeColor;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.*;
+
+public class PortalHelper {
+
+    private PortalHelper() {}
+
+    /**
+     * Attempt to build a portal starting from an air block adjacent to a frame block.
+     *
+     * @param level     the server level
+     * @param airPos    the air block position to start the DFS from
+     * @param framePos  a known frame block position (to identify the frame material)
+     * @param color     portal color from the catalyst
+     * @param creatorId UUID of the player who created it (nullable for command-placed)
+     * @return true if a portal was successfully built
+     */
+    public static boolean buildPortal(ServerLevel level, BlockPos airPos, BlockPos framePos,
+                                      DyeColor color, @Nullable UUID creatorId) {
+        Block frameMaterial = level.getBlockState(framePos).getBlock();
+
+        // detect the portal axis from the air block's surroundings
+        Direction.Axis axis = detectAxis(level, airPos, frameMaterial);
+        if (axis == null) return false;
+
+        // run DFS to find the enclosed area
+        Set<BlockPos> portalBlocks = new HashSet<>();
+        Set<BlockPos> frameBlocks = new HashSet<>();
+
+        boolean valid = detectFrame(level, airPos, frameMaterial, axis, portalBlocks, frameBlocks);
+        if (!valid) return false;
+        if (portalBlocks.isEmpty()) return false;
+        if (portalBlocks.size() > CPConfig.MAX_PORTAL_SIZE.get()) return false;
+
+        // scan frame for rune blocks
+        Map<RuneType, Integer> runes = scanRunes(level, frameBlocks, axis);
+
+        // calculate spawn position (center-bottom of the portal area)
+        BlockPos spawnPos = calculateSpawnPos(portalBlocks);
+
+        // place portal blocks
+        BlockState portalState = ModBlocks.CUSTOM_PORTAL.get().defaultBlockState()
+                .setValue(CustomPortalBlock.COLOR, color)
+                .setValue(CustomPortalBlock.AXIS, axis)
+                .setValue(CustomPortalBlock.LIT, true);
+
+        for (BlockPos pos : portalBlocks) {
+            level.setBlock(pos, portalState, 3);
+        }
+
+        // register portal
+        ResourceLocation frameMaterialId = BuiltInRegistries.BLOCK.getKey(frameMaterial);
+        CustomPortal portal = new CustomPortal(
+                UUID.randomUUID(), color, frameMaterialId,
+                level.dimension(), spawnPos, portalBlocks, creatorId);
+
+        // apply detected runes
+        for (var entry : runes.entrySet()) {
+            for (int i = 0; i < entry.getValue(); i++) {
+                portal.addRune(entry.getKey());
+            }
+        }
+
+        PortalSavedData data = PortalSavedData.get(level);
+        data.getRegistry().registerPortal(portal);
+
+        CustomPortalsFoxified.LOGGER.info("Portal created: color={}, frame={}, pos={}, blocks={}",
+                color.getSerializedName(), frameMaterialId, spawnPos, portalBlocks.size());
+
+        CustomPortal linked = data.getRegistry().tryLinkAcrossAll(portal, level.getServer());
+        if (linked != null) {
+            CustomPortalsFoxified.LOGGER.info("Linked to portal at {} in {}", linked.getSpawnPos(), linked.getDimension());
+        } else {
+            CustomPortalsFoxified.LOGGER.info("No matching portal found to link with");
+        }
+
+        data.setDirty();
+
+        return true;
+    }
+
+    // AXIS DETECTION //
+
+    /**
+     * Determine the portal axis by checking which directions have frame material.
+     * A portal on the X axis means the plane is X-Y (frame extends in X and Y).
+     * A portal on the Z axis means the plane is Z-Y (frame extends in Z and Y).
+     */
+    private static @Nullable Direction.Axis detectAxis(ServerLevel level, BlockPos airPos, Block frameMaterial) {
+        // frame on east/west (X sides) → portal plane is X-Y → axis X
+        boolean hasXFrame = level.getBlockState(airPos.east()).is(frameMaterial)
+                || level.getBlockState(airPos.west()).is(frameMaterial);
+        // frame on north/south (Z sides) → portal plane is Z-Y → axis Z
+        boolean hasZFrame = level.getBlockState(airPos.north()).is(frameMaterial)
+                || level.getBlockState(airPos.south()).is(frameMaterial);
+
+        if (hasXFrame && !hasZFrame) return Direction.Axis.X;
+        if (hasZFrame && !hasXFrame) return Direction.Axis.Z;
+
+        // ambiguous — default based on what we found
+        if (hasXFrame) return Direction.Axis.X;
+        if (hasZFrame) return Direction.Axis.Z;
+
+        return null;
+    }
+
+    // DFS FRAME DETECTION //
+
+    /**
+     * DFS to find all air blocks enclosed by the frame material on a 2D plane.
+     * Returns false if the area is not fully enclosed or exceeds size limits.
+     */
+    private static boolean detectFrame(ServerLevel level, BlockPos start, Block frameMaterial,
+                                       Direction.Axis axis,
+                                       Set<BlockPos> portalBlocks, Set<BlockPos> frameBlocks) {
+        Stack<BlockPos> stack = new Stack<>();
+        Set<BlockPos> visited = new HashSet<>();
+        stack.push(start);
+
+        int maxSize = CPConfig.MAX_PORTAL_SIZE.get();
+
+        while (!stack.isEmpty()) {
+            BlockPos current = stack.pop();
+            if (!visited.add(current)) continue;
+
+            // safety valve — portal is too large
+            if (visited.size() > maxSize) return false;
+
+            List<BlockPos> neighbors = getAdjacentOnPlane(current, axis);
+            for (BlockPos neighbor : neighbors) {
+                BlockState neighborState = level.getBlockState(neighbor);
+
+                if (neighborState.isAir() || neighborState.getBlock() instanceof CustomPortalBlock) {
+                    if (!visited.contains(neighbor)) {
+                        stack.push(neighbor);
+                    }
+                } else if (neighborState.is(frameMaterial)) {
+                    frameBlocks.add(neighbor);
+                } else {
+                    // hit a non-frame, non-air block — frame is not valid
+                    return false;
+                }
+            }
+
+            portalBlocks.add(current);
+        }
+
+        return !portalBlocks.isEmpty();
+    }
+
+    /**
+     * Get the 4 adjacent positions on the portal plane.
+     * For X axis: move in X and Y directions
+     * For Z axis: move in Z and Y directions
+     */
+    private static List<BlockPos> getAdjacentOnPlane(BlockPos pos, Direction.Axis axis) {
+        if (axis == Direction.Axis.X) {
+            // portal plane is X-Y
+            return List.of(
+                    pos.above(), pos.below(),
+                    pos.east(), pos.west());
+        } else {
+            // portal plane is Z-Y
+            return List.of(
+                    pos.above(), pos.below(),
+                    pos.north(), pos.south());
+        }
+    }
+
+    // RUNE SCANNING //
+
+    /**
+     * Scan frame blocks for adjacent rune blocks placed on the frame.
+     */
+    private static Map<RuneType, Integer> scanRunes(ServerLevel level, Set<BlockPos> frameBlocks,
+                                                     Direction.Axis axis) {
+        Map<RuneType, Integer> runes = new EnumMap<>(RuneType.class);
+        Set<BlockPos> checkedRunes = new HashSet<>();
+
+        for (BlockPos framePos : frameBlocks) {
+            // check all 6 faces of the frame block for runes
+            for (Direction dir : Direction.values()) {
+                BlockPos runePos = framePos.relative(dir);
+                if (checkedRunes.contains(runePos)) continue;
+
+                BlockState runeState = level.getBlockState(runePos);
+                if (runeState.getBlock() instanceof AbstractRuneBlock runeBlock) {
+                    checkedRunes.add(runePos);
+                    RuneType type = runeBlock.getRuneType();
+                    runes.merge(type, 1, Integer::sum);
+                }
+            }
+        }
+
+        return runes;
+    }
+
+    // SPAWN POSITION //
+
+    /**
+     * Calculate spawn position: horizontal center, lowest Y with 2 blocks headroom.
+     */
+    private static BlockPos calculateSpawnPos(Set<BlockPos> portalBlocks) {
+        int minX = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE;
+        int minY = Integer.MAX_VALUE;
+        int minZ = Integer.MAX_VALUE, maxZ = Integer.MIN_VALUE;
+
+        for (BlockPos pos : portalBlocks) {
+            minX = Math.min(minX, pos.getX());
+            maxX = Math.max(maxX, pos.getX());
+            minY = Math.min(minY, pos.getY());
+            minZ = Math.min(minZ, pos.getZ());
+            maxZ = Math.max(maxZ, pos.getZ());
+        }
+
+        int centerX = (minX + maxX) / 2;
+        int centerZ = (minZ + maxZ) / 2;
+
+        return new BlockPos(centerX, minY, centerZ);
+    }
+}

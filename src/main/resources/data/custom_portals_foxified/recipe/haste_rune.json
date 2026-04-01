@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    { "item": "minecraft:amethyst_shard" },
+    { "item": "minecraft:sugar" }
+  ],
+  "result": {
+    "id": "custom_portals_foxified:haste_rune",
+    "count": 1
+  }
+}

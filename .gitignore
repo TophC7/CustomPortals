@@ -26,3 +26,4 @@ dist/
 
 # Project specific
 .claude/
+run/

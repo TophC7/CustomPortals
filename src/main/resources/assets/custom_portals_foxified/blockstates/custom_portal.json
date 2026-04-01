@@ -1,0 +1,132 @@
+{
+  "multipart": [
+    {
+      "when": { "color": "white", "axis": "x" },
+      "apply": { "model": "custom_portals_foxified:block/white_portal" }
+    },
+    {
+      "when": { "color": "white", "axis": "z" },
+      "apply": { "model": "custom_portals_foxified:block/white_portal", "y": 90 }
+    },
+    {
+      "when": { "color": "orange", "axis": "x" },
+      "apply": { "model": "custom_portals_foxified:block/orange_portal" }
+    },
+    {
+      "when": { "color": "orange", "axis": "z" },
+      "apply": { "model": "custom_portals_foxified:block/orange_portal", "y": 90 }
+    },
+    {
+      "when": { "color": "magenta", "axis": "x" },
+      "apply": { "model": "custom_portals_foxified:block/magenta_portal" }
+    },
+    {
+      "when": { "color": "magenta", "axis": "z" },
+      "apply": { "model": "custom_portals_foxified:block/magenta_portal", "y": 90 }
+    },
+    {
+      "when": { "color": "light_blue", "axis": "x" },
+      "apply": { "model": "custom_portals_foxified:block/light_blue_portal" }
+    },
+    {
+      "when": { "color": "light_blue", "axis": "z" },
+      "apply": { "model": "custom_portals_foxified:block/light_blue_portal", "y": 90 }
+    },
+    {
+      "when": { "color": "yellow", "axis": "x" },
+      "apply": { "model": "custom_portals_foxified:block/yellow_portal" }
+    },
+    {
+      "when": { "color": "yellow", "axis": "z" },
+      "apply": { "model": "custom_portals_foxified:block/yellow_portal", "y": 90 }
+    },
+    {
+      "when": { "color": "lime", "axis": "x" },
+      "apply": { "model": "custom_portals_foxified:block/lime_portal" }
+    },
+    {
+      "when": { "color": "lime", "axis": "z" },
+      "apply": { "model": "custom_portals_foxified:block/lime_portal", "y": 90 }
+    },
+    {
+      "when": { "color": "pink", "axis": "x" },
+      "apply": { "model": "custom_portals_foxified:block/pink_portal" }
+    },
+    {
+      "when": { "color": "pink", "axis": "z" },
+      "apply": { "model": "custom_portals_foxified:block/pink_portal", "y": 90 }
+    },
+    {
+      "when": { "color": "gray", "axis": "x" },
+      "apply": { "model": "custom_portals_foxified:block/gray_portal" }
+    },
+    {
+      "when": { "color": "gray", "axis": "z" },
+      "apply": { "model": "custom_portals_foxified:block/gray_portal", "y": 90 }
+    },
+    {
+      "when": { "color": "light_gray", "axis": "x" },
+      "apply": { "model": "custom_portals_foxified:block/light_gray_portal" }
+    },
+    {
+      "when": { "color": "light_gray", "axis": "z" },
+      "apply": { "model": "custom_portals_foxified:block/light_gray_portal", "y": 90 }
+    },
+    {
+      "when": { "color": "cyan", "axis": "x" },
+      "apply": { "model": "custom_portals_foxified:block/cyan_portal" }
+    },
+    {
+      "when": { "color": "cyan", "axis": "z" },
+      "apply": { "model": "custom_portals_foxified:block/cyan_portal", "y": 90 }
+    },
+    {
+      "when": { "color": "purple", "axis": "x" },
+      "apply": { "model": "custom_portals_foxified:block/purple_portal" }
+    },
+    {
+      "when": { "color": "purple", "axis": "z" },
+      "apply": { "model": "custom_portals_foxified:block/purple_portal", "y": 90 }
+    },
+    {
+      "when": { "color": "blue", "axis": "x" },
+      "apply": { "model": "custom_portals_foxified:block/blue_portal" }
+    },
+    {
+      "when": { "color": "blue", "axis": "z" },
+      "apply": { "model": "custom_portals_foxified:block/blue_portal", "y": 90 }
+    },
+    {
+      "when": { "color": "brown", "axis": "x" },
+      "apply": { "model": "custom_portals_foxified:block/brown_portal" }
+    },
+    {
+      "when": { "color": "brown", "axis": "z" },
+      "apply": { "model": "custom_portals_foxified:block/brown_portal", "y": 90 }
+    },
+    {
+      "when": { "color": "green", "axis": "x" },
+      "apply": { "model": "custom_portals_foxified:block/green_portal" }
+    },
+    {
+      "when": { "color": "green", "axis": "z" },
+      "apply": { "model": "custom_portals_foxified:block/green_portal", "y": 90 }
+    },
+    {
+      "when": { "color": "red", "axis": "x" },
+      "apply": { "model": "custom_portals_foxified:block/red_portal" }
+    },
+    {
+      "when": { "color": "red", "axis": "z" },
+      "apply": { "model": "custom_portals_foxified:block/red_portal", "y": 90 }
+    },
+    {
+      "when": { "color": "black", "axis": "x" },
+      "apply": { "model": "custom_portals_foxified:block/black_portal" }
+    },
+    {
+      "when": { "color": "black", "axis": "z" },
+      "apply": { "model": "custom_portals_foxified:block/black_portal", "y": 90 }
+    }
+  ]
+}

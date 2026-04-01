@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    { "item": "minecraft:amethyst_shard" },
+    { "item": "minecraft:ender_eye" }
+  ],
+  "result": {
+    "id": "custom_portals_foxified:gate_rune",
+    "count": 1
+  }
+}
