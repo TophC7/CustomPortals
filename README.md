@@ -51,6 +51,10 @@ This port solves that by reimplementing the core features using NeoForge's nativ
 
 - Requires NeoForge 1.21.1 (21.1.219+)
 
+## Credits
+
+Original [Custom Portals](https://modrinth.com/mod/custom-portals) mod by [Palyon](https://modrinth.com/user/Palyon-dev) (MIT licensed). This is a NeoForge reimplementation of their work.
+
 ## License
 
 GPL-3.0-or-later
