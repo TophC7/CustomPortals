@@ -2,11 +2,11 @@
 
 ## Critical
 
-- [ ] Rune block models use `cube_all` - renders as full opaque cubes instead of thin slabs. Need thin plate models (like `minecraft:block/button` or custom)
+- [x] Rune block models use `cube_all` - renders as full opaque cubes instead of thin slabs. Need thin plate models (like `minecraft:block/button` or custom)
 - [ ] Breaking the portal frame does not break the portal
 - [ ] In creative you can break a singular portal block without breaking the whole portal
-- [ ] `LIT=false` has no visual - 16 `*_portal_inactive.png` textures exist but blockstate never references them. Add multipart entries for `lit=false` with inactive texture models
-- [ ] Orphaned `models/block/custom_portal.json` - old single-model file, no longer referenced. Delete along with `textures/block/custom_portal.png` and `.mcmeta`
+- [x] `LIT=false` has no visual - 16 `*_portal_inactive.png` textures exist but blockstate never references them. Add multipart entries for `lit=false` with inactive texture models
+- [x] Orphaned `models/block/custom_portal.json` - old single-model file, no longer referenced. Delete along with `textures/block/custom_portal.png` and `.mcmeta`
 
 ## Will Fix
 

@@ -1,6 +1,6 @@
 {
-  "parent": "minecraft:block/cube_all",
+  "parent": "custom_portals_foxified:block/rune_plate",
   "textures": {
-    "all": "custom_portals_foxified:block/strong_enhancer_rune"
+    "texture": "custom_portals_foxified:block/strong_enhancer_rune"
   }
 }

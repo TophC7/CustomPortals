@@ -1,132 +1,260 @@
 {
   "multipart": [
     {
-      "when": { "color": "white", "axis": "x" },
+      "when": { "color": "white", "axis": "x", "lit": "true" },
       "apply": { "model": "custom_portals_foxified:block/white_portal" }
     },
     {
-      "when": { "color": "white", "axis": "z" },
+      "when": { "color": "white", "axis": "z", "lit": "true" },
       "apply": { "model": "custom_portals_foxified:block/white_portal", "y": 90 }
     },
     {
-      "when": { "color": "orange", "axis": "x" },
+      "when": { "color": "white", "axis": "x", "lit": "false" },
+      "apply": { "model": "custom_portals_foxified:block/white_portal_inactive" }
+    },
+    {
+      "when": { "color": "white", "axis": "z", "lit": "false" },
+      "apply": { "model": "custom_portals_foxified:block/white_portal_inactive", "y": 90 }
+    },
+    {
+      "when": { "color": "orange", "axis": "x", "lit": "true" },
       "apply": { "model": "custom_portals_foxified:block/orange_portal" }
     },
     {
-      "when": { "color": "orange", "axis": "z" },
+      "when": { "color": "orange", "axis": "z", "lit": "true" },
       "apply": { "model": "custom_portals_foxified:block/orange_portal", "y": 90 }
     },
     {
-      "when": { "color": "magenta", "axis": "x" },
+      "when": { "color": "orange", "axis": "x", "lit": "false" },
+      "apply": { "model": "custom_portals_foxified:block/orange_portal_inactive" }
+    },
+    {
+      "when": { "color": "orange", "axis": "z", "lit": "false" },
+      "apply": { "model": "custom_portals_foxified:block/orange_portal_inactive", "y": 90 }
+    },
+    {
+      "when": { "color": "magenta", "axis": "x", "lit": "true" },
       "apply": { "model": "custom_portals_foxified:block/magenta_portal" }
     },
     {
-      "when": { "color": "magenta", "axis": "z" },
+      "when": { "color": "magenta", "axis": "z", "lit": "true" },
       "apply": { "model": "custom_portals_foxified:block/magenta_portal", "y": 90 }
     },
     {
-      "when": { "color": "light_blue", "axis": "x" },
+      "when": { "color": "magenta", "axis": "x", "lit": "false" },
+      "apply": { "model": "custom_portals_foxified:block/magenta_portal_inactive" }
+    },
+    {
+      "when": { "color": "magenta", "axis": "z", "lit": "false" },
+      "apply": { "model": "custom_portals_foxified:block/magenta_portal_inactive", "y": 90 }
+    },
+    {
+      "when": { "color": "light_blue", "axis": "x", "lit": "true" },
       "apply": { "model": "custom_portals_foxified:block/light_blue_portal" }
     },
     {
-      "when": { "color": "light_blue", "axis": "z" },
+      "when": { "color": "light_blue", "axis": "z", "lit": "true" },
       "apply": { "model": "custom_portals_foxified:block/light_blue_portal", "y": 90 }
     },
     {
-      "when": { "color": "yellow", "axis": "x" },
+      "when": { "color": "light_blue", "axis": "x", "lit": "false" },
+      "apply": { "model": "custom_portals_foxified:block/light_blue_portal_inactive" }
+    },
+    {
+      "when": { "color": "light_blue", "axis": "z", "lit": "false" },
+      "apply": { "model": "custom_portals_foxified:block/light_blue_portal_inactive", "y": 90 }
+    },
+    {
+      "when": { "color": "yellow", "axis": "x", "lit": "true" },
       "apply": { "model": "custom_portals_foxified:block/yellow_portal" }
     },
     {
-      "when": { "color": "yellow", "axis": "z" },
+      "when": { "color": "yellow", "axis": "z", "lit": "true" },
       "apply": { "model": "custom_portals_foxified:block/yellow_portal", "y": 90 }
     },
     {
-      "when": { "color": "lime", "axis": "x" },
+      "when": { "color": "yellow", "axis": "x", "lit": "false" },
+      "apply": { "model": "custom_portals_foxified:block/yellow_portal_inactive" }
+    },
+    {
+      "when": { "color": "yellow", "axis": "z", "lit": "false" },
+      "apply": { "model": "custom_portals_foxified:block/yellow_portal_inactive", "y": 90 }
+    },
+    {
+      "when": { "color": "lime", "axis": "x", "lit": "true" },
       "apply": { "model": "custom_portals_foxified:block/lime_portal" }
     },
     {
-      "when": { "color": "lime", "axis": "z" },
+      "when": { "color": "lime", "axis": "z", "lit": "true" },
       "apply": { "model": "custom_portals_foxified:block/lime_portal", "y": 90 }
     },
     {
-      "when": { "color": "pink", "axis": "x" },
+      "when": { "color": "lime", "axis": "x", "lit": "false" },
+      "apply": { "model": "custom_portals_foxified:block/lime_portal_inactive" }
+    },
+    {
+      "when": { "color": "lime", "axis": "z", "lit": "false" },
+      "apply": { "model": "custom_portals_foxified:block/lime_portal_inactive", "y": 90 }
+    },
+    {
+      "when": { "color": "pink", "axis": "x", "lit": "true" },
       "apply": { "model": "custom_portals_foxified:block/pink_portal" }
     },
     {
-      "when": { "color": "pink", "axis": "z" },
+      "when": { "color": "pink", "axis": "z", "lit": "true" },
       "apply": { "model": "custom_portals_foxified:block/pink_portal", "y": 90 }
     },
     {
-      "when": { "color": "gray", "axis": "x" },
+      "when": { "color": "pink", "axis": "x", "lit": "false" },
+      "apply": { "model": "custom_portals_foxified:block/pink_portal_inactive" }
+    },
+    {
+      "when": { "color": "pink", "axis": "z", "lit": "false" },
+      "apply": { "model": "custom_portals_foxified:block/pink_portal_inactive", "y": 90 }
+    },
+    {
+      "when": { "color": "gray", "axis": "x", "lit": "true" },
       "apply": { "model": "custom_portals_foxified:block/gray_portal" }
     },
     {
-      "when": { "color": "gray", "axis": "z" },
+      "when": { "color": "gray", "axis": "z", "lit": "true" },
       "apply": { "model": "custom_portals_foxified:block/gray_portal", "y": 90 }
     },
     {
-      "when": { "color": "light_gray", "axis": "x" },
+      "when": { "color": "gray", "axis": "x", "lit": "false" },
+      "apply": { "model": "custom_portals_foxified:block/gray_portal_inactive" }
+    },
+    {
+      "when": { "color": "gray", "axis": "z", "lit": "false" },
+      "apply": { "model": "custom_portals_foxified:block/gray_portal_inactive", "y": 90 }
+    },
+    {
+      "when": { "color": "light_gray", "axis": "x", "lit": "true" },
       "apply": { "model": "custom_portals_foxified:block/light_gray_portal" }
     },
     {
-      "when": { "color": "light_gray", "axis": "z" },
+      "when": { "color": "light_gray", "axis": "z", "lit": "true" },
       "apply": { "model": "custom_portals_foxified:block/light_gray_portal", "y": 90 }
     },
     {
-      "when": { "color": "cyan", "axis": "x" },
+      "when": { "color": "light_gray", "axis": "x", "lit": "false" },
+      "apply": { "model": "custom_portals_foxified:block/light_gray_portal_inactive" }
+    },
+    {
+      "when": { "color": "light_gray", "axis": "z", "lit": "false" },
+      "apply": { "model": "custom_portals_foxified:block/light_gray_portal_inactive", "y": 90 }
+    },
+    {
+      "when": { "color": "cyan", "axis": "x", "lit": "true" },
       "apply": { "model": "custom_portals_foxified:block/cyan_portal" }
     },
     {
-      "when": { "color": "cyan", "axis": "z" },
+      "when": { "color": "cyan", "axis": "z", "lit": "true" },
       "apply": { "model": "custom_portals_foxified:block/cyan_portal", "y": 90 }
     },
     {
-      "when": { "color": "purple", "axis": "x" },
+      "when": { "color": "cyan", "axis": "x", "lit": "false" },
+      "apply": { "model": "custom_portals_foxified:block/cyan_portal_inactive" }
+    },
+    {
+      "when": { "color": "cyan", "axis": "z", "lit": "false" },
+      "apply": { "model": "custom_portals_foxified:block/cyan_portal_inactive", "y": 90 }
+    },
+    {
+      "when": { "color": "purple", "axis": "x", "lit": "true" },
       "apply": { "model": "custom_portals_foxified:block/purple_portal" }
     },
     {
-      "when": { "color": "purple", "axis": "z" },
+      "when": { "color": "purple", "axis": "z", "lit": "true" },
       "apply": { "model": "custom_portals_foxified:block/purple_portal", "y": 90 }
     },
     {
-      "when": { "color": "blue", "axis": "x" },
+      "when": { "color": "purple", "axis": "x", "lit": "false" },
+      "apply": { "model": "custom_portals_foxified:block/purple_portal_inactive" }
+    },
+    {
+      "when": { "color": "purple", "axis": "z", "lit": "false" },
+      "apply": { "model": "custom_portals_foxified:block/purple_portal_inactive", "y": 90 }
+    },
+    {
+      "when": { "color": "blue", "axis": "x", "lit": "true" },
       "apply": { "model": "custom_portals_foxified:block/blue_portal" }
     },
     {
-      "when": { "color": "blue", "axis": "z" },
+      "when": { "color": "blue", "axis": "z", "lit": "true" },
       "apply": { "model": "custom_portals_foxified:block/blue_portal", "y": 90 }
     },
     {
-      "when": { "color": "brown", "axis": "x" },
+      "when": { "color": "blue", "axis": "x", "lit": "false" },
+      "apply": { "model": "custom_portals_foxified:block/blue_portal_inactive" }
+    },
+    {
+      "when": { "color": "blue", "axis": "z", "lit": "false" },
+      "apply": { "model": "custom_portals_foxified:block/blue_portal_inactive", "y": 90 }
+    },
+    {
+      "when": { "color": "brown", "axis": "x", "lit": "true" },
       "apply": { "model": "custom_portals_foxified:block/brown_portal" }
     },
     {
-      "when": { "color": "brown", "axis": "z" },
+      "when": { "color": "brown", "axis": "z", "lit": "true" },
       "apply": { "model": "custom_portals_foxified:block/brown_portal", "y": 90 }
     },
     {
-      "when": { "color": "green", "axis": "x" },
+      "when": { "color": "brown", "axis": "x", "lit": "false" },
+      "apply": { "model": "custom_portals_foxified:block/brown_portal_inactive" }
+    },
+    {
+      "when": { "color": "brown", "axis": "z", "lit": "false" },
+      "apply": { "model": "custom_portals_foxified:block/brown_portal_inactive", "y": 90 }
+    },
+    {
+      "when": { "color": "green", "axis": "x", "lit": "true" },
       "apply": { "model": "custom_portals_foxified:block/green_portal" }
     },
     {
-      "when": { "color": "green", "axis": "z" },
+      "when": { "color": "green", "axis": "z", "lit": "true" },
       "apply": { "model": "custom_portals_foxified:block/green_portal", "y": 90 }
     },
     {
-      "when": { "color": "red", "axis": "x" },
+      "when": { "color": "green", "axis": "x", "lit": "false" },
+      "apply": { "model": "custom_portals_foxified:block/green_portal_inactive" }
+    },
+    {
+      "when": { "color": "green", "axis": "z", "lit": "false" },
+      "apply": { "model": "custom_portals_foxified:block/green_portal_inactive", "y": 90 }
+    },
+    {
+      "when": { "color": "red", "axis": "x", "lit": "true" },
       "apply": { "model": "custom_portals_foxified:block/red_portal" }
     },
     {
-      "when": { "color": "red", "axis": "z" },
+      "when": { "color": "red", "axis": "z", "lit": "true" },
       "apply": { "model": "custom_portals_foxified:block/red_portal", "y": 90 }
     },
     {
-      "when": { "color": "black", "axis": "x" },
+      "when": { "color": "red", "axis": "x", "lit": "false" },
+      "apply": { "model": "custom_portals_foxified:block/red_portal_inactive" }
+    },
+    {
+      "when": { "color": "red", "axis": "z", "lit": "false" },
+      "apply": { "model": "custom_portals_foxified:block/red_portal_inactive", "y": 90 }
+    },
+    {
+      "when": { "color": "black", "axis": "x", "lit": "true" },
       "apply": { "model": "custom_portals_foxified:block/black_portal" }
     },
     {
-      "when": { "color": "black", "axis": "z" },
+      "when": { "color": "black", "axis": "z", "lit": "true" },
       "apply": { "model": "custom_portals_foxified:block/black_portal", "y": 90 }
+    },
+    {
+      "when": { "color": "black", "axis": "x", "lit": "false" },
+      "apply": { "model": "custom_portals_foxified:block/black_portal_inactive" }
+    },
+    {
+      "when": { "color": "black", "axis": "z", "lit": "false" },
+      "apply": { "model": "custom_portals_foxified:block/black_portal_inactive", "y": 90 }
     }
   ]
 }

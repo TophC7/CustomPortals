@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/nether_portal_ns",
+  "textures": {
+    "portal": "custom_portals_foxified:block/pink_portal_inactive",
+    "particle": "custom_portals_foxified:block/pink_portal_inactive"
+  }
+}
