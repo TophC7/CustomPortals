@@ -13,7 +13,6 @@ public class CPConfig {
   public static final ModConfigSpec.IntValue ENHANCED_RANGE;
   public static final ModConfigSpec.IntValue STRONG_RANGE;
   public static final ModConfigSpec.BooleanValue ALLOW_CROSS_DIMENSION;
-  public static final ModConfigSpec.BooleanValue PRIVATE_PORTALS;
   public static final ModConfigSpec.BooleanValue MUTE_SOUNDS;
 
   // REDSTONE //
@@ -44,8 +43,6 @@ public class CPConfig {
         builder
             .comment("Whether gate runes can link portals across dimensions")
             .define("allowCrossDimension", true);
-    PRIVATE_PORTALS =
-        builder.comment("Only the portal creator can use it").define("privatePortals", false);
     MUTE_SOUNDS =
         builder.comment("Mute portal ambient and teleport sounds").define("muteSounds", false);
     REDSTONE_DISABLES =

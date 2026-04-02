@@ -35,13 +35,7 @@ public class PortalCatalyst extends Item {
 
     if (!level.getBlockState(airPos).isAir()) return InteractionResult.PASS;
 
-    boolean built =
-        PortalHelper.buildPortal(
-            level,
-            airPos,
-            clickedPos,
-            color,
-            context.getPlayer() != null ? context.getPlayer().getUUID() : null);
+    boolean built = PortalHelper.buildPortal(level, airPos, clickedPos, color);
 
     if (built) {
       level.playSound(null, airPos, SoundEvents.FLINTANDSTEEL_USE, SoundSource.BLOCKS, 1.0F, 1.0F);

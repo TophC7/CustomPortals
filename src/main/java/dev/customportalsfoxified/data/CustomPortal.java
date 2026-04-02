@@ -24,8 +24,6 @@ public class CustomPortal {
   private final ResourceKey<Level> dimension;
   private final BlockPos spawnPos;
   private final Set<BlockPos> portalBlocks;
-  private final @Nullable UUID creatorId;
-
   // linking
   private @Nullable UUID linkedPortalId;
   private @Nullable ResourceKey<Level> linkedDimension;
@@ -46,15 +44,13 @@ public class CustomPortal {
       ResourceLocation frameMaterial,
       ResourceKey<Level> dimension,
       BlockPos spawnPos,
-      Set<BlockPos> portalBlocks,
-      @Nullable UUID creatorId) {
+      Set<BlockPos> portalBlocks) {
     this.id = id;
     this.color = color;
     this.frameMaterial = frameMaterial;
     this.dimension = dimension;
     this.spawnPos = spawnPos;
     this.portalBlocks = new HashSet<>(portalBlocks);
-    this.creatorId = creatorId;
   }
 
   // GETTERS //
@@ -81,10 +77,6 @@ public class CustomPortal {
 
   public Set<BlockPos> getPortalBlocks() {
     return Collections.unmodifiableSet(portalBlocks);
-  }
-
-  public @Nullable UUID getCreatorId() {
-    return creatorId;
   }
 
   public @Nullable UUID getLinkedPortalId() {
@@ -154,15 +146,6 @@ public class CustomPortal {
     if (crossDimension) {
       if (!CPConfig.ALLOW_CROSS_DIMENSION.get()) return false;
       if (!this.hasGate && !other.hasGate) return false;
-    }
-
-    // private portals must share creator
-    if (CPConfig.PRIVATE_PORTALS.get()) {
-      if (this.creatorId != null
-          && other.creatorId != null
-          && !this.creatorId.equals(other.creatorId)) {
-        return false;
-      }
     }
 
     return isInRange(other);
@@ -260,7 +243,6 @@ public class CustomPortal {
     }
     tag.put("portalBlocks", blocksList);
 
-    if (creatorId != null) tag.putUUID("creatorId", creatorId);
     if (linkedPortalId != null) {
       tag.putUUID("linkedPortalId", linkedPortalId);
       tag.putString("linkedDimension", linkedDimension.location().toString());
@@ -298,10 +280,8 @@ public class CustomPortal {
       }
     }
 
-    UUID creatorId = tag.contains("creatorId") ? tag.getUUID("creatorId") : null;
-
     CustomPortal portal =
-        new CustomPortal(id, color, frameMaterial, dimension, spawnPos, portalBlocks, creatorId);
+        new CustomPortal(id, color, frameMaterial, dimension, spawnPos, portalBlocks);
 
     if (tag.contains("linkedPortalId")) {
       portal.linkedPortalId = tag.getUUID("linkedPortalId");

@@ -17,7 +17,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
-import org.jetbrains.annotations.Nullable;
 
 public class PortalHelper {
 
@@ -30,15 +29,10 @@ public class PortalHelper {
    * @param airPos the air block position to start the DFS from
    * @param framePos a known frame block position (to identify the frame material)
    * @param color portal color from the catalyst
-   * @param creatorId UUID of the player who created it (nullable for command-placed)
    * @return true if a portal was successfully built
    */
   public static boolean buildPortal(
-      ServerLevel level,
-      BlockPos airPos,
-      BlockPos framePos,
-      DyeColor color,
-      @Nullable UUID creatorId) {
+      ServerLevel level, BlockPos airPos, BlockPos framePos, DyeColor color) {
     Block frameMaterial = level.getBlockState(framePos).getBlock();
 
     // try both axes, pick whichever finds a valid enclosed frame
@@ -90,8 +84,7 @@ public class PortalHelper {
             frameMaterialId,
             level.dimension(),
             spawnPos,
-            portalBlocks,
-            creatorId);
+            portalBlocks);
 
     // apply detected runes
     for (var entry : runes.entrySet()) {
