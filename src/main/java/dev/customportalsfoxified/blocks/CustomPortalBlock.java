@@ -138,6 +138,16 @@ public class CustomPortalBlock extends HalfTransparentBlock
         PortalSavedData.get(level).getRegistry().getPortalAt(entity.blockPosition());
     if (portal != null && portal.hasHaste()) return 1;
 
+    // haste on the destination portal also grants instant transition
+    if (portal != null && portal.isLinked()) {
+      ServerLevel destLevel = level.getServer().getLevel(portal.getLinkedDimension());
+      if (destLevel != null) {
+        CustomPortal linked =
+            PortalSavedData.get(destLevel).getRegistry().getPortalById(portal.getLinkedPortalId());
+        if (linked != null && linked.hasHaste()) return 1;
+      }
+    }
+
     // match vanilla nether portal behavior: creative=1 tick, survival=80,
     // non-player=0
     if (entity instanceof Player player) {

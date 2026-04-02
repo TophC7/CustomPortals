@@ -6,10 +6,6 @@
 
 ## Will Fix
 
-- [ ] Haste rune only applies to origin portal — destination should also be instant
-- [ ] Gate rune not working — cross-dimension portals don't link/teleport
-- [ ] Enhancer/Infinity rune removal doesn't unlink portals that are now out of range
-- [ ] Inactive (unlinked) portal shows wavy/confusion effects — should show faint static tint only
 - [ ] Rune models render as flat decals — need per-pixel shaped models or opaque textures with solid backgrounds for visible 3D sides. Current textures use transparency so sides are invisible. Options: (a) custom shaped models per rune, (b) solid background textures for square plate look, (c) accept flat decal look
 
 ## Backlog (Beta+)

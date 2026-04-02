@@ -113,6 +113,29 @@ public abstract class AbstractRuneBlock extends FaceAttachedHorizontalDirectiona
       CustomPortal portal = data.getRegistry().getPortalAt(mountedOn.relative(dir));
       if (portal != null) {
         portal.removeRune(getRuneType());
+
+        // rune removal may invalidate the current link
+        // (gate removed from cross-dim pair, or enhancer removed and now out of range)
+        if (portal.isLinked()) {
+          net.minecraft.server.MinecraftServer server = level.getServer();
+          ServerLevel partnerLevel = server.getLevel(portal.getLinkedDimension());
+          if (partnerLevel != null) {
+            CustomPortal partner =
+                PortalSavedData.get(partnerLevel)
+                    .getRegistry()
+                    .getPortalById(portal.getLinkedPortalId());
+            if (partner != null && !portal.isCompatibleWith(partner)) {
+              portal.unlink();
+              partner.unlink();
+              // try to find new partners for both
+              data.getRegistry().tryLinkAcrossAll(portal, server);
+              PortalSavedData partnerData = PortalSavedData.get(partnerLevel);
+              partnerData.getRegistry().tryLinkAcrossAll(partner, server);
+              partnerData.setDirty();
+            }
+          }
+        }
+
         data.setDirty();
         return;
       }

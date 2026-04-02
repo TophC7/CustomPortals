@@ -124,10 +124,19 @@ public class CustomPortal {
   }
 
   public boolean canLinkWith(CustomPortal other) {
+    if (this.isLinked() || other.isLinked()) return false;
+    return isCompatibleWith(other);
+  }
+
+  /**
+   * Checks compatibility (color, frame, dimension rules, range) without considering link state.
+   * Used for initial linking (via canLinkWith) and for revalidating existing links after rune
+   * changes.
+   */
+  public boolean isCompatibleWith(CustomPortal other) {
     if (this.id.equals(other.id)) return false;
     if (this.color != other.color) return false;
     if (!this.frameMaterial.equals(other.frameMaterial)) return false;
-    if (this.isLinked() || other.isLinked()) return false;
 
     // cross-dimension requires gate rune on at least one side
     boolean crossDimension = !this.dimension.equals(other.dimension);
