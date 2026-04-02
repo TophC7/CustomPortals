@@ -1,3 +1,6 @@
 {
-  "parent": "custom_portals_foxified:block/gate_rune"
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "custom_portals_foxified:item/gate_rune"
+  }
 }

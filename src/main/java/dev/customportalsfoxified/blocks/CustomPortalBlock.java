@@ -2,6 +2,7 @@ package dev.customportalsfoxified.blocks;
 
 import dev.customportalsfoxified.CustomPortalsFoxified;
 import dev.customportalsfoxified.ModAttachments;
+import dev.customportalsfoxified.config.CPConfig;
 import dev.customportalsfoxified.ModBlocks;
 import dev.customportalsfoxified.ModItems;
 import dev.customportalsfoxified.data.CustomPortal;
@@ -70,8 +71,7 @@ public class CustomPortalBlock extends HalfTransparentBlock
                   if (!state.getValue(LIT)) return 0;
                   return state.getValue(COLOR) == DyeColor.BLACK ? 0 : 11;
                 })
-            .noLootTable()
-            .randomTicks());
+            .noLootTable());
     registerDefaultState(
         stateDefinition
             .any()
@@ -252,7 +252,7 @@ public class CustomPortalBlock extends HalfTransparentBlock
   public void animateTick(BlockState state, Level level, BlockPos pos, RandomSource random) {
     if (!state.getValue(LIT)) return;
 
-    if (random.nextInt(100) == 0) {
+    if (!CPConfig.MUTE_SOUNDS.get() && random.nextInt(100) == 0) {
       level.playLocalSound(
           pos.getX() + 0.5,
           pos.getY() + 0.5,

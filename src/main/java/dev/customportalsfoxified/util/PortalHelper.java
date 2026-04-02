@@ -95,7 +95,7 @@ public class PortalHelper {
     PortalSavedData data = PortalSavedData.get(level);
     data.getRegistry().registerPortal(portal);
 
-    CustomPortalsFoxified.LOGGER.info(
+    CustomPortalsFoxified.LOGGER.debug(
         "Portal created: color={}, frame={}, pos={}, blocks={}",
         color.getSerializedName(),
         frameMaterialId,
@@ -104,10 +104,10 @@ public class PortalHelper {
 
     CustomPortal linked = data.getRegistry().tryLinkAcrossAll(portal, level.getServer());
     if (linked != null) {
-      CustomPortalsFoxified.LOGGER.info(
+      CustomPortalsFoxified.LOGGER.debug(
           "Linked to portal at {} in {}", linked.getSpawnPos(), linked.getDimension());
     } else {
-      CustomPortalsFoxified.LOGGER.info("No matching portal found to link with");
+      CustomPortalsFoxified.LOGGER.debug("No matching portal found to link with");
     }
 
     data.setDirty();

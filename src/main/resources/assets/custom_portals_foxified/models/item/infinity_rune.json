@@ -1,3 +1,6 @@
 {
-  "parent": "custom_portals_foxified:block/infinity_rune"
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "custom_portals_foxified:item/infinity_rune"
+  }
 }

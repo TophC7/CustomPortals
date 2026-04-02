@@ -8,11 +8,8 @@ import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.FaceAttachedHorizontalDirectionalBlock;
 import net.minecraft.world.level.block.SoundType;
@@ -26,13 +23,13 @@ import org.jetbrains.annotations.Nullable;
 
 public abstract class AbstractRuneBlock extends FaceAttachedHorizontalDirectionalBlock {
 
-  // thin slab shapes for each attachment face
-  private static final VoxelShape FLOOR_SHAPE = Block.box(2, 0, 2, 14, 2, 14);
-  private static final VoxelShape CEILING_SHAPE = Block.box(2, 14, 2, 14, 16, 14);
-  private static final VoxelShape NORTH_SHAPE = Block.box(2, 2, 14, 14, 14, 16);
-  private static final VoxelShape SOUTH_SHAPE = Block.box(2, 2, 0, 14, 14, 2);
-  private static final VoxelShape EAST_SHAPE = Block.box(0, 2, 2, 2, 14, 14);
-  private static final VoxelShape WEST_SHAPE = Block.box(14, 2, 2, 16, 14, 14);
+  // 1px thick plate shapes — flush against attachment surface
+  private static final VoxelShape FLOOR_SHAPE = Block.box(2, 0, 2, 14, 1, 14);
+  private static final VoxelShape CEILING_SHAPE = Block.box(2, 15, 2, 14, 16, 14);
+  private static final VoxelShape NORTH_SHAPE = Block.box(2, 2, 15, 14, 14, 16);
+  private static final VoxelShape SOUTH_SHAPE = Block.box(2, 2, 0, 14, 14, 1);
+  private static final VoxelShape EAST_SHAPE = Block.box(0, 2, 2, 1, 14, 14);
+  private static final VoxelShape WEST_SHAPE = Block.box(15, 2, 2, 16, 14, 14);
 
   protected AbstractRuneBlock() {
     super(
@@ -67,28 +64,6 @@ public abstract class AbstractRuneBlock extends FaceAttachedHorizontalDirectiona
             default -> FLOOR_SHAPE;
           };
     };
-  }
-
-  @Override
-  public @Nullable BlockState getStateForPlacement(BlockPlaceContext context) {
-    return super.getStateForPlacement(context);
-  }
-
-  @Override
-  public boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
-    return super.canSurvive(state, level, pos);
-  }
-
-  @Override
-  public BlockState updateShape(
-      BlockState state,
-      Direction direction,
-      BlockState neighborState,
-      LevelAccessor level,
-      BlockPos pos,
-      BlockPos neighborPos) {
-    // break if support block is removed
-    return super.updateShape(state, direction, neighborState, level, pos, neighborPos);
   }
 
   // PORTAL REGISTRATION //

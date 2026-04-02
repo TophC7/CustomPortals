@@ -1,6 +1,7 @@
 package dev.customportalsfoxified.data;
 
 import dev.customportalsfoxified.config.CPConfig;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
@@ -77,7 +78,7 @@ public class CustomPortal {
   }
 
   public Set<BlockPos> getPortalBlocks() {
-    return portalBlocks;
+    return Collections.unmodifiableSet(portalBlocks);
   }
 
   public @Nullable UUID getCreatorId() {
