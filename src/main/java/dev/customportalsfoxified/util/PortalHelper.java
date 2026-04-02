@@ -41,18 +41,26 @@ public class PortalHelper {
       @Nullable UUID creatorId) {
     Block frameMaterial = level.getBlockState(framePos).getBlock();
 
-    // detect the portal axis from the air block's surroundings
-    Direction.Axis axis = detectAxis(level, airPos, frameMaterial);
+    // try both axes, pick whichever finds a valid enclosed frame
+    Direction.Axis axis = null;
+    Set<BlockPos> portalBlocks = null;
+    Set<BlockPos> frameBlocks = null;
+
+    for (Direction.Axis candidate : new Direction.Axis[] {Direction.Axis.X, Direction.Axis.Z}) {
+      Set<BlockPos> tryPortal = new HashSet<>();
+      Set<BlockPos> tryFrame = new HashSet<>();
+      if (detectFrame(level, airPos, frameMaterial, candidate, tryPortal, tryFrame)
+          && !tryPortal.isEmpty()
+          && tryPortal.size() <= CPConfig.MAX_PORTAL_SIZE.get()) {
+        // prefer the axis that finds more portal blocks (larger valid frame)
+        if (portalBlocks == null || tryPortal.size() > portalBlocks.size()) {
+          axis = candidate;
+          portalBlocks = tryPortal;
+          frameBlocks = tryFrame;
+        }
+      }
+    }
     if (axis == null) return false;
-
-    // run DFS to find the enclosed area
-    Set<BlockPos> portalBlocks = new HashSet<>();
-    Set<BlockPos> frameBlocks = new HashSet<>();
-
-    boolean valid = detectFrame(level, airPos, frameMaterial, axis, portalBlocks, frameBlocks);
-    if (!valid) return false;
-    if (portalBlocks.isEmpty()) return false;
-    if (portalBlocks.size() > CPConfig.MAX_PORTAL_SIZE.get()) return false;
 
     // scan frame for rune blocks
     Map<RuneType, Integer> runes = scanRunes(level, frameBlocks, axis);
@@ -67,7 +75,7 @@ public class PortalHelper {
             .defaultBlockState()
             .setValue(CustomPortalBlock.COLOR, color)
             .setValue(CustomPortalBlock.AXIS, axis)
-            .setValue(CustomPortalBlock.LIT, true);
+            .setValue(CustomPortalBlock.LIT, false);
 
     for (BlockPos pos : portalBlocks) {
       level.setBlock(pos, portalState, 3);
@@ -102,6 +110,8 @@ public class PortalHelper {
         spawnPos,
         portalBlocks.size());
 
+    // tryLinkAcrossAll pushes LIT=true on both portals if a match is found;
+    // blocks start LIT=false so no correction needed on failure
     CustomPortal linked = data.getRegistry().tryLinkAcrossAll(portal, level.getServer());
     if (linked != null) {
       CustomPortalsFoxified.LOGGER.debug(
@@ -110,40 +120,9 @@ public class PortalHelper {
       CustomPortalsFoxified.LOGGER.debug("No matching portal found to link with");
     }
 
-    // push correct LIT state (tryLinkAcrossAll handles it if linked,
-    // but we still need to set LIT=false if no partner was found)
-    CustomPortalBlock.updateLitState(level, portal);
-
     data.setDirty();
 
     return true;
-  }
-
-  // AXIS DETECTION //
-
-  /**
-   * Determine the portal axis by checking which directions have frame material. A portal on the X
-   * axis means the plane is X-Y (frame extends in X and Y). A portal on the Z axis means the plane
-   * is Z-Y (frame extends in Z and Y).
-   */
-  private static @Nullable Direction.Axis detectAxis(
-      ServerLevel level, BlockPos airPos, Block frameMaterial) {
-    // frame on east/west (X sides) → portal plane is X-Y → axis X
-    boolean hasXFrame =
-        level.getBlockState(airPos.east()).is(frameMaterial)
-            || level.getBlockState(airPos.west()).is(frameMaterial);
-    // frame on north/south (Z sides) → portal plane is Z-Y → axis Z
-    boolean hasZFrame =
-        level.getBlockState(airPos.north()).is(frameMaterial)
-            || level.getBlockState(airPos.south()).is(frameMaterial);
-
-    if (hasXFrame && !hasZFrame) return Direction.Axis.X;
-    if (hasZFrame && !hasXFrame) return Direction.Axis.Z;
-
-    // both axes have frame (corner click); default to X
-    if (hasXFrame) return Direction.Axis.X;
-
-    return null;
   }
 
   // DFS FRAME DETECTION //
@@ -159,7 +138,7 @@ public class PortalHelper {
       Direction.Axis axis,
       Set<BlockPos> portalBlocks,
       Set<BlockPos> frameBlocks) {
-    Stack<BlockPos> stack = new Stack<>();
+    ArrayDeque<BlockPos> stack = new ArrayDeque<>();
     Set<BlockPos> visited = new HashSet<>();
     stack.push(start);
 

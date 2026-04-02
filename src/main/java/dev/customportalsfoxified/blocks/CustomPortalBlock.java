@@ -309,11 +309,11 @@ public class CustomPortalBlock extends HalfTransparentBlock
       // spawn at portal edge with high inward velocity along thin axis
       int j = random.nextInt(2) * 2 - 1; // -1 or +1
       if (state.getValue(AXIS) == Direction.Axis.X) {
-        // portal spans X-Y, thin on Z — particles fly along Z
+        // portal spans X-Y, thin on Z; particles fly along Z
         z = pos.getZ() + 0.5 + 0.25 * j;
         vz = random.nextFloat() * 2.0F * j;
       } else {
-        // portal spans Z-Y, thin on X — particles fly along X
+        // portal spans Z-Y, thin on X; particles fly along X
         x = pos.getX() + 0.5 + 0.25 * j;
         vx = random.nextFloat() * 2.0F * j;
       }
@@ -369,17 +369,17 @@ public class CustomPortalBlock extends HalfTransparentBlock
   // LIT STATE | event-driven, no ticker //
 
   /**
-   * Update LIT on all blocks of a portal. Called on link/unlink events instead of polling every
-   * tick.
+   * Update LIT on all blocks of a portal. LIT = linked, simple as that. Redstone is handled
+   * separately by unlinking/relinking in neighborChanged.
    */
   public static void updateLitState(ServerLevel level, CustomPortal portal) {
+    boolean shouldBeLit = portal.isLinked();
     for (BlockPos pos : portal.getPortalBlocks()) {
       BlockState state = level.getBlockState(pos);
-      if (state.getBlock() instanceof CustomPortalBlock) {
-        boolean shouldBeLit = shouldBeLit(portal, level, pos);
-        if (state.getValue(LIT) != shouldBeLit) {
-          level.setBlock(pos, state.setValue(LIT, shouldBeLit), 3);
-        }
+      if (state.getBlock() instanceof CustomPortalBlock && state.getValue(LIT) != shouldBeLit) {
+        // flag 2 (UPDATE_CLIENTS) instead of 3 (UPDATE_CLIENTS | NOTIFY_NEIGHBORS)
+        // to avoid cascading neighborChanged calls on adjacent portal blocks
+        level.setBlock(pos, state.setValue(LIT, shouldBeLit), 2);
       }
     }
   }
@@ -387,24 +387,58 @@ public class CustomPortalBlock extends HalfTransparentBlock
   @Override
   public void neighborChanged(
       BlockState state, Level level, BlockPos pos, Block block, BlockPos fromPos, boolean isMoving) {
-    if (level.isClientSide() || CPConfig.REDSTONE_MODE.get() != CPConfig.RedstoneMode.ON) return;
+    if (level.isClientSide() || !CPConfig.REDSTONE_DISABLES.get()) return;
 
     ServerLevel serverLevel = (ServerLevel) level;
-    CustomPortal portal = PortalSavedData.get(serverLevel).getRegistry().getPortalAt(pos);
-    boolean shouldBeLit = shouldBeLit(portal, level, pos);
-    if (state.getValue(LIT) != shouldBeLit) {
-      level.setBlock(pos, state.setValue(LIT, shouldBeLit), 3);
+    PortalSavedData data = PortalSavedData.get(serverLevel);
+    CustomPortal portal = data.getRegistry().getPortalAt(pos);
+    if (portal == null) return;
+
+    boolean hasSignal = isPortalPowered(portal, level);
+
+    if (hasSignal && !portal.isRedstoneDisabled()) {
+      // redstone applied: mark disabled, unlink, let partner find a new match
+      portal.setRedstoneDisabled(true);
+
+      if (portal.isLinked()) {
+        net.minecraft.server.MinecraftServer server = serverLevel.getServer();
+        ServerLevel partnerLevel = server.getLevel(portal.getLinkedDimension());
+        CustomPortal partner = null;
+        if (partnerLevel != null) {
+          partner =
+              PortalSavedData.get(partnerLevel)
+                  .getRegistry()
+                  .getPortalById(portal.getLinkedPortalId());
+        }
+
+        portal.unlink();
+        if (partner != null) {
+          partner.unlink();
+          updateLitState(partnerLevel, partner);
+          // partner is free, try to find a new match (won't pick this portal, it's disabled)
+          PortalSavedData partnerData = PortalSavedData.get(partnerLevel);
+          partnerData.getRegistry().tryLinkAcrossAll(partner, server);
+          partnerData.setDirty();
+        }
+      }
+      updateLitState(serverLevel, portal);
+      data.setDirty();
+
+    } else if (!hasSignal && portal.isRedstoneDisabled()) {
+      // redstone removed: clear disabled flag, try to relink
+      portal.setRedstoneDisabled(false);
+      net.minecraft.server.MinecraftServer server = serverLevel.getServer();
+      data.getRegistry().tryLinkAcrossAll(portal, server);
+      updateLitState(serverLevel, portal);
+      data.setDirty();
     }
   }
 
-  private static boolean shouldBeLit(
-      @Nullable CustomPortal portal, Level level, BlockPos pos) {
-    boolean linked = portal != null && portal.isLinked();
-
-    return switch (CPConfig.REDSTONE_MODE.get()) {
-      case OFF -> linked;
-      case ON -> linked && level.hasNeighborSignal(pos);
-      case NO_EFFECT -> true;
-    };
+  /** Check if any block in the portal is receiving a redstone signal. */
+  private static boolean isPortalPowered(CustomPortal portal, Level level) {
+    for (BlockPos pos : portal.getPortalBlocks()) {
+      if (level.hasNeighborSignal(pos)) return true;
+    }
+    return false;
   }
 }

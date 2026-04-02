@@ -38,6 +38,8 @@ public class CustomPortal {
   private int weakEnhancerCount;
   private int strongEnhancerCount;
 
+  private boolean redstoneDisabled;
+
   public CustomPortal(
       UUID id,
       DyeColor color,
@@ -97,6 +99,14 @@ public class CustomPortal {
     return linkedPortalId != null;
   }
 
+  public boolean isRedstoneDisabled() {
+    return redstoneDisabled;
+  }
+
+  public void setRedstoneDisabled(boolean disabled) {
+    this.redstoneDisabled = disabled;
+  }
+
   public boolean hasHaste() {
     return hasHaste;
   }
@@ -125,6 +135,7 @@ public class CustomPortal {
 
   public boolean canLinkWith(CustomPortal other) {
     if (this.isLinked() || other.isLinked()) return false;
+    if (this.redstoneDisabled || other.redstoneDisabled) return false;
     return isCompatibleWith(other);
   }
 
@@ -162,17 +173,17 @@ public class CustomPortal {
     int range = getRangeForTier(maxTier);
     if (range == Integer.MAX_VALUE) return true;
 
-    double distance = calculateDistance(other);
-    return distance <= range;
+    long distSq = calculateDistanceSquared(other);
+    return distSq <= (long) range * range;
   }
 
-  private double calculateDistance(CustomPortal other) {
-    double x1 = this.spawnPos.getX();
-    double z1 = this.spawnPos.getZ();
-    double x2 = other.spawnPos.getX();
-    double z2 = other.spawnPos.getZ();
+  private long calculateDistanceSquared(CustomPortal other) {
+    long x1 = this.spawnPos.getX();
+    long z1 = this.spawnPos.getZ();
+    long x2 = other.spawnPos.getX();
+    long z2 = other.spawnPos.getZ();
 
-    // NOTE: nether 8:1 ratio; scale nether coords to overworld for comparison
+    // nether 8:1 ratio; scale nether coords to overworld for comparison
     boolean thisIsNether = this.dimension.equals(Level.NETHER);
     boolean otherIsNether = other.dimension.equals(Level.NETHER);
 
@@ -184,7 +195,9 @@ public class CustomPortal {
       z2 *= 8;
     }
 
-    return Math.sqrt((x2 - x1) * (x2 - x1) + (z2 - z1) * (z2 - z1));
+    long dx = x2 - x1;
+    long dz = z2 - z1;
+    return dx * dx + dz * dz;
   }
 
   // ENHANCEMENT //
@@ -258,6 +271,7 @@ public class CustomPortal {
     tag.putBoolean("hasInfinity", hasInfinity);
     tag.putInt("weakEnhancers", weakEnhancerCount);
     tag.putInt("strongEnhancers", strongEnhancerCount);
+    tag.putBoolean("redstoneDisabled", redstoneDisabled);
 
     return tag;
   }
@@ -302,6 +316,7 @@ public class CustomPortal {
     portal.hasInfinity = tag.getBoolean("hasInfinity");
     portal.weakEnhancerCount = tag.getInt("weakEnhancers");
     portal.strongEnhancerCount = tag.getInt("strongEnhancers");
+    portal.redstoneDisabled = tag.getBoolean("redstoneDisabled");
 
     return portal;
   }

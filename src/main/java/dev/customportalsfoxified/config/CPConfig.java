@@ -18,13 +18,7 @@ public class CPConfig {
 
   // REDSTONE //
 
-  public static final ModConfigSpec.EnumValue<RedstoneMode> REDSTONE_MODE;
-
-  public enum RedstoneMode {
-    OFF,
-    ON,
-    NO_EFFECT
-  }
+  public static final ModConfigSpec.BooleanValue REDSTONE_DISABLES;
 
   static {
     var builder = new ModConfigSpec.Builder();
@@ -54,12 +48,10 @@ public class CPConfig {
         builder.comment("Only the portal creator can use it").define("privatePortals", false);
     MUTE_SOUNDS =
         builder.comment("Mute portal ambient and teleport sounds").define("muteSounds", false);
-    REDSTONE_MODE =
+    REDSTONE_DISABLES =
         builder
-            .comment(
-                "How redstone interacts with portals: OFF = always active, ON = needs signal,"
-                    + " NO_EFFECT = ignored")
-            .defineEnum("redstoneMode", RedstoneMode.OFF);
+            .comment("When true, a redstone signal turns off adjacent portal blocks")
+            .define("redstoneDisables", true);
     builder.pop();
 
     SPEC = builder.build();
