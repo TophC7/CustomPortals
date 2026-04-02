@@ -7,9 +7,15 @@
     "#E#"
   ],
   "key": {
-    "#": "minecraft:ender_pearl",
-    "E": "minecraft:ender_eye",
-    "B": "minecraft:green_dye"
+    "#": {
+      "item": "minecraft:ender_pearl"
+    },
+    "E": {
+      "item": "minecraft:ender_eye"
+    },
+    "B": {
+      "item": "minecraft:green_dye"
+    }
   },
   "result": {
     "id": "custom_portals_foxified:green_portal_catalyst",

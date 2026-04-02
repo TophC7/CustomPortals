@@ -3,23 +3,55 @@
   "group": "portal_catalyst",
   "ingredients": [
     [
-      "custom_portals_foxified:white_portal_catalyst",
-      "custom_portals_foxified:orange_portal_catalyst",
-      "custom_portals_foxified:magenta_portal_catalyst",
-      "custom_portals_foxified:light_blue_portal_catalyst",
-      "custom_portals_foxified:yellow_portal_catalyst",
-      "custom_portals_foxified:lime_portal_catalyst",
-      "custom_portals_foxified:pink_portal_catalyst",
-      "custom_portals_foxified:gray_portal_catalyst",
-      "custom_portals_foxified:light_gray_portal_catalyst",
-      "custom_portals_foxified:cyan_portal_catalyst",
-      "custom_portals_foxified:purple_portal_catalyst",
-      "custom_portals_foxified:blue_portal_catalyst",
-      "custom_portals_foxified:brown_portal_catalyst",
-      "custom_portals_foxified:green_portal_catalyst",
-      "custom_portals_foxified:black_portal_catalyst"
+      {
+        "item": "custom_portals_foxified:white_portal_catalyst"
+      },
+      {
+        "item": "custom_portals_foxified:orange_portal_catalyst"
+      },
+      {
+        "item": "custom_portals_foxified:magenta_portal_catalyst"
+      },
+      {
+        "item": "custom_portals_foxified:light_blue_portal_catalyst"
+      },
+      {
+        "item": "custom_portals_foxified:yellow_portal_catalyst"
+      },
+      {
+        "item": "custom_portals_foxified:lime_portal_catalyst"
+      },
+      {
+        "item": "custom_portals_foxified:pink_portal_catalyst"
+      },
+      {
+        "item": "custom_portals_foxified:gray_portal_catalyst"
+      },
+      {
+        "item": "custom_portals_foxified:light_gray_portal_catalyst"
+      },
+      {
+        "item": "custom_portals_foxified:cyan_portal_catalyst"
+      },
+      {
+        "item": "custom_portals_foxified:purple_portal_catalyst"
+      },
+      {
+        "item": "custom_portals_foxified:blue_portal_catalyst"
+      },
+      {
+        "item": "custom_portals_foxified:brown_portal_catalyst"
+      },
+      {
+        "item": "custom_portals_foxified:green_portal_catalyst"
+      },
+      {
+        "item": "custom_portals_foxified:black_portal_catalyst"
+      }
     ],
-    "minecraft:red_dye"
+    {
+      "item": "minecraft:red_dye"
+    }
   ],
   "result": {
     "id": "custom_portals_foxified:red_portal_catalyst",

@@ -6,9 +6,15 @@
     " A#"
   ],
   "key": {
-    "#": "minecraft:feather",
-    "R": "minecraft:rabbit_foot",
-    "A": "minecraft:amethyst_shard"
+    "#": {
+      "item": "minecraft:feather"
+    },
+    "R": {
+      "item": "minecraft:rabbit_foot"
+    },
+    "A": {
+      "item": "minecraft:amethyst_shard"
+    }
   },
   "result": {
     "id": "custom_portals_foxified:haste_rune",

@@ -6,9 +6,15 @@
     "#P "
   ],
   "key": {
-    "#": "minecraft:prismarine_shard",
-    "P": "minecraft:prismarine_crystals",
-    "W": "custom_portals_foxified:enhancer_rune"
+    "#": {
+      "item": "minecraft:prismarine_shard"
+    },
+    "P": {
+      "item": "minecraft:prismarine_crystals"
+    },
+    "W": {
+      "item": "custom_portals_foxified:enhancer_rune"
+    }
   },
   "result": {
     "id": "custom_portals_foxified:strong_enhancer_rune",

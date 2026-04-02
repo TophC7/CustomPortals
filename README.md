@@ -80,7 +80,7 @@ All settings are in `custom_portals_foxified-common.toml`:
 
 ### Why port?
 
-The originial mod works with Sinytra Connector, but connector can break mods and adds overhead. More importantly, the original mod uses mixins to rewrite Minecraft's teleportation sequence, which can cause crashes or data loss with backpack/inventory mods that attach data to players. It's not the original dev's fault, it's just how modding goes.
+The original mod works with Sinytra Connector, but connector can break mods and adds overhead. More importantly, the original mod uses mixins to rewrite Minecraft's teleportation sequence, which can cause crashes or data loss with backpack/inventory mods that attach data to players. It's not the original dev's fault, it's just how modding goes.
 
 This port uses NeoForge's native `Portal` interface instead. Vanilla handles all player data and dimension hopping. No mixins, no data loss, better compatibility.
 

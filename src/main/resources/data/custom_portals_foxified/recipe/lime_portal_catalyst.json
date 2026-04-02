@@ -7,9 +7,15 @@
     "#E#"
   ],
   "key": {
-    "#": "minecraft:ender_pearl",
-    "E": "minecraft:ender_eye",
-    "B": "minecraft:lime_dye"
+    "#": {
+      "item": "minecraft:ender_pearl"
+    },
+    "E": {
+      "item": "minecraft:ender_eye"
+    },
+    "B": {
+      "item": "minecraft:lime_dye"
+    }
   },
   "result": {
     "id": "custom_portals_foxified:lime_portal_catalyst",

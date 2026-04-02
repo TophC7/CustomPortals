@@ -6,9 +6,15 @@
     "T##"
   ],
   "key": {
-    "#": "minecraft:weeping_vines",
-    "T": "minecraft:twisting_vines",
-    "A": "minecraft:amethyst_shard"
+    "#": {
+      "item": "minecraft:weeping_vines"
+    },
+    "T": {
+      "item": "minecraft:twisting_vines"
+    },
+    "A": {
+      "item": "minecraft:amethyst_shard"
+    }
   },
   "result": {
     "id": "custom_portals_foxified:gate_rune",
