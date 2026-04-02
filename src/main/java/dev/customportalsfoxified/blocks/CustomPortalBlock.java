@@ -66,7 +66,8 @@ public class CustomPortalBlock extends HalfTransparentBlock
                   if (!state.getValue(LIT)) return 0;
                   return state.getValue(COLOR) == DyeColor.BLACK ? 0 : 11;
                 })
-            .noLootTable());
+            .noLootTable()
+            .randomTicks());
     registerDefaultState(
         stateDefinition
             .any()
@@ -273,6 +274,37 @@ public class CustomPortalBlock extends HalfTransparentBlock
     }
 
     // TODO: spawn colored particles based on state.getValue(COLOR)
+  }
+
+  @Override
+  public void randomTick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
+    if (!state.getValue(LIT)) return;
+
+    // easter egg: very rarely, a colored sheep wanders out of an active portal
+    // randomTick fires ~1/4096 per block per tick; 1/1000 on top of that makes
+    // this roughly once every ~3.4 real-time hours per portal block
+    if (random.nextInt(1000) == 0
+        && level.getGameRules().getBoolean(GameRules.RULE_DOMOBSPAWNING)) {
+      CustomPortal portal = PortalSavedData.get(level).getRegistry().getPortalAt(pos);
+      if (portal != null) {
+        BlockPos spawnPos = portal.getSpawnPos();
+        
+        // cap: don't spawn if 4+ sheep already nearby
+        AABB area = new AABB(spawnPos).inflate(16.0);
+        if (level.getEntitiesOfClass(Sheep.class, area).size() >= 4) return;
+
+        Sheep sheep = EntityType.SHEEP.create(level);
+        if (sheep != null) {
+          sheep.setColor(state.getValue(COLOR));
+          sheep.moveTo(
+              spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5,
+              random.nextFloat() * 360.0F, 0.0F);
+          // prevent the sheep from teleporting through the portal it spawned in
+          sheep.setPortalCooldown();
+          level.addFreshEntity(sheep);
+        }
+      }
+    }
   }
 
   // WATERLOGGING //
