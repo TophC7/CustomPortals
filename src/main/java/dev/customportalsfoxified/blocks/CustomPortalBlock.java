@@ -162,6 +162,9 @@ public class CustomPortalBlock extends HalfTransparentBlock
 
   @Override
   public void entityInside(BlockState state, Level level, BlockPos pos, Entity entity) {
+    // inactive (unlinked) portals shouldn't trigger confusion/wobble effects
+    if (!state.getValue(LIT)) return;
+
     if (entity.canUsePortal(false)) {
       // client: skip if on our post-teleport cooldown to prevent
       // re-entering the destination portal immediately
