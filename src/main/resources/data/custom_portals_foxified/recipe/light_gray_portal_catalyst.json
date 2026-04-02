@@ -1,8 +1,8 @@
 {
   "type": "minecraft:crafting_shapeless",
   "ingredients": [
-    { "item": "minecraft:ender_pearl" },
-    { "item": "minecraft:light_gray_dye" }
+    "minecraft:ender_pearl",
+    "minecraft:light_gray_dye"
   ],
   "result": {
     "id": "custom_portals_foxified:light_gray_portal_catalyst",
