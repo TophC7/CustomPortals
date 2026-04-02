@@ -1,9 +1,13 @@
 {
-  "type": "minecraft:crafting_shapeless",
-  "ingredients": [
-    "minecraft:amethyst_shard",
-    "minecraft:glowstone_dust"
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "###",
+    "#A "
   ],
+  "key": {
+    "#": "minecraft:lapis_lazuli",
+    "A": "minecraft:amethyst_shard"
+  },
   "result": {
     "id": "custom_portals_foxified:enhancer_rune",
     "count": 1

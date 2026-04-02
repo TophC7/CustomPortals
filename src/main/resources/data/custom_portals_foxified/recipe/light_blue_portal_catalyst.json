@@ -1,11 +1,18 @@
 {
-  "type": "minecraft:crafting_shapeless",
-  "ingredients": [
-    "minecraft:ender_pearl",
-    "minecraft:light_blue_dye"
+  "type": "minecraft:crafting_shaped",
+  "group": "portal_catalyst",
+  "pattern": [
+    "#E#",
+    "EBE",
+    "#E#"
   ],
+  "key": {
+    "#": "minecraft:ender_pearl",
+    "E": "minecraft:ender_eye",
+    "B": "minecraft:light_blue_dye"
+  },
   "result": {
     "id": "custom_portals_foxified:light_blue_portal_catalyst",
-    "count": 1
+    "count": 2
   }
 }

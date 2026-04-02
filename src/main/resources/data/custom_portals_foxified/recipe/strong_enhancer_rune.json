@@ -1,9 +1,15 @@
 {
-  "type": "minecraft:crafting_shapeless",
-  "ingredients": [
-    "minecraft:amethyst_shard",
-    "minecraft:glowstone"
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    " # ",
+    "PW#",
+    "#P "
   ],
+  "key": {
+    "#": "minecraft:prismarine_shard",
+    "P": "minecraft:prismarine_crystals",
+    "W": "custom_portals_foxified:enhancer_rune"
+  },
   "result": {
     "id": "custom_portals_foxified:strong_enhancer_rune",
     "count": 1

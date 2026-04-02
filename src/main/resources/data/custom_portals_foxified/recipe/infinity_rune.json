@@ -1,9 +1,15 @@
 {
-  "type": "minecraft:crafting_shapeless",
-  "ingredients": [
-    "minecraft:amethyst_shard",
-    "minecraft:nether_star"
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "#PP",
+    "PnP",
+    "PP#"
   ],
+  "key": {
+    "#": "custom_portals_foxified:strong_enhancer_rune",
+    "P": "minecraft:popped_chorus_fruit",
+    "n": "minecraft:netherite_ingot"
+  },
   "result": {
     "id": "custom_portals_foxified:infinity_rune",
     "count": 1

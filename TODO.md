@@ -3,6 +3,7 @@
 ## Will Fix
 
 - [ ] Rune models render as flat decals - need per-pixel shaped models or opaque textures with solid backgrounds for visible 3D sides. Current textures use transparency so sides are invisible. Options: (a) custom shaped models per rune, (b) solid background textures for square plate look, (c) accept flat decal look
+- [ ] Gate Rune should be uncraftable/hidden when `allowCrossDimension` is false (disable recipe + remove from creative tab)
 
 ## Backlog (Beta+)
 
