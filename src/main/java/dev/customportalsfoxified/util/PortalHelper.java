@@ -110,6 +110,10 @@ public class PortalHelper {
       CustomPortalsFoxified.LOGGER.debug("No matching portal found to link with");
     }
 
+    // push correct LIT state (tryLinkAcrossAll handles it if linked,
+    // but we still need to set LIT=false if no partner was found)
+    CustomPortalBlock.updateLitState(level, portal);
+
     data.setDirty();
 
     return true;
