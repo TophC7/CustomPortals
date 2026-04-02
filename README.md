@@ -1,6 +1,6 @@
 # Custom Portals Foxified
 
-<!-- TODO: banner image -->
+![Banner, diorite portal in floating island](public/banner.png)
 
 Build portals out of any block. Create two matching frames, light them with a colored catalyst, and travel between linked portals.
 
@@ -10,9 +10,10 @@ A NeoForge re-implementation of [Custom Portals](https://modrinth.com/mod/custom
 
 ## Portals
 
-Build a rectangular frame using any solid block, then right-click the inside with a **Portal Catalyst**. Create a second frame out of the exact same block, light it with the matching catalyst color, and they link up instantly.
+Build a rectangular frame using any solid block, then right-click the inside with a **Portal Catalyst**. Create a second frame out of the exact same block, light it with the matching catalyst color, and they link up instantly. Frames can be built upright (vertical portals) or flat on the ground/ceiling (horizontal portals).
 
 - Any block works as a frame; stone, wood, diamond blocks, whatever you want
+- Vertical or horizontal portals work, you can build frames on walls, floors, ceilings, even floating.
 - 16 catalyst colors to organize your portal network
 - Portals link by matching **color + frame material**
 - Same-dimension and cross-dimension travel (with Gate Rune)
