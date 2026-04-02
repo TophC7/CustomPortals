@@ -26,9 +26,9 @@ Build a rectangular frame using any solid block, then right-click the inside wit
 
 Shaped recipe: **4 ender pearls + 4 eyes of ender + 1 dye** -> 2 portal catalysts
 
-Catalysts can also be recolored: any catalyst + a dye -> 1 catalyst of the new color (shapeless).
+![Catalyst recipe](public/catalyst.png)
 
-<!-- TODO: recipe screenshot -->
+Catalysts can also be recolored: any catalyst + a dye -> 1 catalyst of the new color (shapeless).
 
 ## Runes
 
@@ -44,7 +44,15 @@ Place rune blocks on the portal's frame to enhance it. The rune must be mounted 
 
 Without runes, portals link within 100 blocks in the same dimension. Haste on either end of a linked pair grants instant teleportation for both sides.
 
-<!-- TODO: rune placement screenshot -->
+<details>
+<summary>Recipe Images</summary>
+
+![Haste Rune](public/haste.png)
+![Gate Rune](public/gate.png)
+![Enhance Rune](public/enhance.png)
+![Strong Enhancer Rune](public/strong.png)
+![Infinite Rune](public/infinite.png) 
+</details>
 
 ## Redstone
 
