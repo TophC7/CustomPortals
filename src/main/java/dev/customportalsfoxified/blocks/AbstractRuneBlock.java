@@ -23,7 +23,7 @@ import org.jetbrains.annotations.Nullable;
 
 public abstract class AbstractRuneBlock extends FaceAttachedHorizontalDirectionalBlock {
 
-  // 1px thick plate shapes — flush against attachment surface
+  // 1px thick plate shapes; flush against attachment surface
   private static final VoxelShape FLOOR_SHAPE = Block.box(2, 0, 2, 14, 1, 14);
   private static final VoxelShape CEILING_SHAPE = Block.box(2, 15, 2, 14, 16, 14);
   private static final VoxelShape NORTH_SHAPE = Block.box(2, 2, 15, 14, 14, 16);
@@ -127,7 +127,9 @@ public abstract class AbstractRuneBlock extends FaceAttachedHorizontalDirectiona
             if (partner != null && !portal.isCompatibleWith(partner)) {
               portal.unlink();
               partner.unlink();
-              // try to find new partners for both
+              CustomPortalBlock.updateLitState(level, portal);
+              CustomPortalBlock.updateLitState(partnerLevel, partner);
+              // try to find new partners for both (will push LIT again if successful)
               data.getRegistry().tryLinkAcrossAll(portal, server);
               PortalSavedData partnerData = PortalSavedData.get(partnerLevel);
               partnerData.getRegistry().tryLinkAcrossAll(partner, server);

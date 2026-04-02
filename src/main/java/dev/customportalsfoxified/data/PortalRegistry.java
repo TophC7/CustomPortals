@@ -1,6 +1,7 @@
 package dev.customportalsfoxified.data;
 
 import dev.customportalsfoxified.CustomPortalsFoxified;
+import dev.customportalsfoxified.blocks.CustomPortalBlock;
 import java.util.*;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
@@ -55,6 +56,14 @@ public class PortalRegistry {
         if (portal.canLinkWith(candidate)) {
           portal.link(candidate);
           data.setDirty();
+
+          // push LIT state on both portals now that they're linked
+          CustomPortalBlock.updateLitState(level, candidate);
+          ServerLevel portalLevel = server.getLevel(portal.getDimension());
+          if (portalLevel != null) {
+            CustomPortalBlock.updateLitState(portalLevel, portal);
+          }
+
           CustomPortalsFoxified.LOGGER.debug(
               "Linked portals {} <-> {}", portal.getId(), candidate.getId());
           return candidate;
@@ -73,6 +82,8 @@ public class PortalRegistry {
         CustomPortal partner = partnerData.getRegistry().getPortalById(portal.getLinkedPortalId());
         if (partner != null) {
           partner.unlink();
+          CustomPortalBlock.updateLitState(partnerLevel, partner);
+          // try to find a new partner (will push LIT again if successful)
           partnerData.getRegistry().tryLinkAcrossAll(partner, server);
           partnerData.setDirty();
         }

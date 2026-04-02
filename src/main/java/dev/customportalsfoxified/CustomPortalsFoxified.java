@@ -20,7 +20,6 @@ public class CustomPortalsFoxified {
     LOGGER.info("Custom Portals Foxified loaded");
 
     ModBlocks.BLOCKS.register(modEventBus);
-    ModBlocks.BLOCK_ENTITY_TYPES.register(modEventBus);
     ModItems.ITEMS.register(modEventBus);
     ModItems.CREATIVE_TABS.register(modEventBus);
     ModAttachments.ATTACHMENTS.register(modEventBus);

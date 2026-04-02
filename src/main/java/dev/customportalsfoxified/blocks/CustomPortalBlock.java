@@ -3,7 +3,6 @@ package dev.customportalsfoxified.blocks;
 import dev.customportalsfoxified.CustomPortalsFoxified;
 import dev.customportalsfoxified.ModAttachments;
 import dev.customportalsfoxified.config.CPConfig;
-import dev.customportalsfoxified.ModBlocks;
 import dev.customportalsfoxified.ModItems;
 import dev.customportalsfoxified.data.CustomPortal;
 import dev.customportalsfoxified.data.PortalSavedData;
@@ -28,13 +27,9 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.HalfTransparentBlock;
 import net.minecraft.world.level.block.Portal;
 import net.minecraft.world.level.block.SimpleWaterloggedBlock;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntityTicker;
-import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
@@ -51,7 +46,7 @@ import net.neoforged.neoforge.network.PacketDistributor;
 import org.jetbrains.annotations.Nullable;
 
 public class CustomPortalBlock extends HalfTransparentBlock
-    implements Portal, EntityBlock, SimpleWaterloggedBlock {
+    implements Portal, SimpleWaterloggedBlock {
 
   public static final EnumProperty<DyeColor> COLOR = EnumProperty.create("color", DyeColor.class);
   public static final EnumProperty<Direction.Axis> AXIS = BlockStateProperties.HORIZONTAL_AXIS;
@@ -293,19 +288,45 @@ public class CustomPortalBlock extends HalfTransparentBlock
     return defaultBlockState().setValue(WATERLOGGED, fluid.getType() == Fluids.WATER);
   }
 
-  // BLOCK ENTITY //
+  // LIT STATE | event-driven, no ticker //
 
-  @Override
-  public @Nullable BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
-    return new CustomPortalBlockEntity(pos, state);
+  /**
+   * Update LIT on all blocks of a portal. Called on link/unlink events instead of polling every
+   * tick.
+   */
+  public static void updateLitState(ServerLevel level, CustomPortal portal) {
+    for (BlockPos pos : portal.getPortalBlocks()) {
+      BlockState state = level.getBlockState(pos);
+      if (state.getBlock() instanceof CustomPortalBlock) {
+        boolean shouldBeLit = shouldBeLit(portal, level, pos);
+        if (state.getValue(LIT) != shouldBeLit) {
+          level.setBlock(pos, state.setValue(LIT, shouldBeLit), 3);
+        }
+      }
+    }
   }
 
   @Override
-  public @Nullable <T extends BlockEntity> BlockEntityTicker<T> getTicker(
-      Level level, BlockState state, BlockEntityType<T> blockEntityType) {
-    if (level.isClientSide()) return null;
-    return blockEntityType == ModBlocks.PORTAL_BLOCK_ENTITY.get()
-        ? (lvl, pos, st, be) -> ((CustomPortalBlockEntity) be).tick(lvl, pos, st)
-        : null;
+  public void neighborChanged(
+      BlockState state, Level level, BlockPos pos, Block block, BlockPos fromPos, boolean isMoving) {
+    if (level.isClientSide() || CPConfig.REDSTONE_MODE.get() != CPConfig.RedstoneMode.ON) return;
+
+    ServerLevel serverLevel = (ServerLevel) level;
+    CustomPortal portal = PortalSavedData.get(serverLevel).getRegistry().getPortalAt(pos);
+    boolean shouldBeLit = shouldBeLit(portal, level, pos);
+    if (state.getValue(LIT) != shouldBeLit) {
+      level.setBlock(pos, state.setValue(LIT, shouldBeLit), 3);
+    }
+  }
+
+  private static boolean shouldBeLit(
+      @Nullable CustomPortal portal, Level level, BlockPos pos) {
+    boolean linked = portal != null && portal.isLinked();
+
+    return switch (CPConfig.REDSTONE_MODE.get()) {
+      case OFF -> linked;
+      case ON -> linked && level.hasNeighborSignal(pos);
+      case NO_EFFECT -> true;
+    };
   }
 }
