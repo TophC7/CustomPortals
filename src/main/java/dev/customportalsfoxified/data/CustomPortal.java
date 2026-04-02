@@ -196,10 +196,6 @@ public class CustomPortal {
     };
   }
 
-  public int getTeleportDelay() {
-    return hasHaste ? 1 : 80;
-  }
-
   // RUNE MUTATIONS //
 
   public void addRune(RuneType type) {

@@ -156,18 +156,27 @@ public class CustomPortalBlock extends HalfTransparentBlock
   // ENTITY INTERACTION //
 
   @Override
+  public Portal.Transition getLocalTransition() {
+    return Portal.Transition.CONFUSION;
+  }
+
+  @Override
   public void entityInside(BlockState state, Level level, BlockPos pos, Entity entity) {
-    // NOTE: don't gate on LIT; teleportation availability is handled by
-    // getPortalDestination returning null for unlinked portals
-    if (!level.isClientSide() && entity.canUsePortal(false)) {
+    if (entity.canUsePortal(false)) {
+      // client: skip if on our post-teleport cooldown to prevent
+      // re-entering the destination portal immediately
+      if (level.isClientSide() && entity instanceof net.minecraft.client.player.LocalPlayer) {
+        if (dev.customportalsfoxified.client.ClientPortalState.isOnCooldown()) return;
+      }
+
       entity.setAsInsidePortal(this, pos);
 
-      if (entity instanceof ServerPlayer sp) {
+      // sends color on every tick; a tiny packet (1 varint) and
+      // only fires while the player is in the portal. Change detection
+      // was unreliable because the attachment persists across sessions.
+      if (!level.isClientSide() && entity instanceof ServerPlayer sp) {
         int colorId = state.getValue(COLOR).getId();
-        if (sp.getData(ModAttachments.PORTAL_COLOR.get()) != colorId) {
-          sp.setData(ModAttachments.PORTAL_COLOR.get(), colorId);
-          PacketDistributor.sendToPlayer(sp, new SyncPortalColorPayload(colorId));
-        }
+        PacketDistributor.sendToPlayer(sp, new SyncPortalColorPayload(colorId));
       }
     }
   }

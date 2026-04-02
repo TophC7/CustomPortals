@@ -1,7 +1,6 @@
 package dev.customportalsfoxified;
 
 import dev.customportalsfoxified.config.CPConfig;
-import dev.customportalsfoxified.network.ScreenTransitionPayload;
 import dev.customportalsfoxified.network.SyncPortalColorPayload;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
@@ -37,9 +36,5 @@ public class CustomPortalsFoxified {
         SyncPortalColorPayload.TYPE,
         SyncPortalColorPayload.STREAM_CODEC,
         SyncPortalColorPayload::handle);
-    registrar.playToClient(
-        ScreenTransitionPayload.TYPE,
-        ScreenTransitionPayload.STREAM_CODEC,
-        ScreenTransitionPayload::handle);
   }
 }
