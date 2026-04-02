@@ -2,12 +2,14 @@ package dev.customportalsfoxified.client;
 
 import dev.customportalsfoxified.CustomPortalsFoxified;
 import dev.customportalsfoxified.ModBlocks;
+import dev.customportalsfoxified.particle.ModParticles;
 import net.minecraft.client.renderer.ItemBlockRenderTypes;
 import net.minecraft.client.renderer.RenderType;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
+import net.neoforged.neoforge.client.event.RegisterParticleProvidersEvent;
 
 @EventBusSubscriber(
     modid = CustomPortalsFoxified.MOD_ID,
@@ -31,5 +33,10 @@ public class ClientSetup {
               ModBlocks.STRONG_ENHANCER_RUNE.get(), RenderType.cutout());
           ItemBlockRenderTypes.setRenderLayer(ModBlocks.INFINITY_RUNE.get(), RenderType.cutout());
         });
+  }
+
+  @SubscribeEvent
+  public static void registerParticles(RegisterParticleProvidersEvent event) {
+    event.registerSpriteSet(ModParticles.COLORED_PORTAL.get(), ColoredPortalParticle.Provider::new);
   }
 }

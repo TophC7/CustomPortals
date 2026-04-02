@@ -2,6 +2,7 @@ package dev.customportalsfoxified;
 
 import dev.customportalsfoxified.config.CPConfig;
 import dev.customportalsfoxified.network.SyncPortalColorPayload;
+import dev.customportalsfoxified.particle.ModParticles;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
@@ -23,6 +24,7 @@ public class CustomPortalsFoxified {
     ModItems.ITEMS.register(modEventBus);
     ModItems.CREATIVE_TABS.register(modEventBus);
     ModAttachments.ATTACHMENTS.register(modEventBus);
+    ModParticles.PARTICLES.register(modEventBus);
 
     modEventBus.addListener(this::registerPayloads);
 

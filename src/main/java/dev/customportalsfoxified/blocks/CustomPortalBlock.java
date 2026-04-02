@@ -7,7 +7,10 @@ import dev.customportalsfoxified.ModItems;
 import dev.customportalsfoxified.data.CustomPortal;
 import dev.customportalsfoxified.data.PortalSavedData;
 import dev.customportalsfoxified.network.SyncPortalColorPayload;
+import dev.customportalsfoxified.particle.ColoredPortalParticleOptions;
 import java.util.ArrayList;
+import java.util.EnumMap;
+import java.util.Map;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -17,6 +20,8 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.animal.Sheep;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.ItemStack;
@@ -39,11 +44,13 @@ import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.level.portal.DimensionTransition;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.jetbrains.annotations.Nullable;
+import org.joml.Vector3f;
 
 public class CustomPortalBlock extends HalfTransparentBlock
     implements Portal, SimpleWaterloggedBlock {
@@ -55,6 +62,20 @@ public class CustomPortalBlock extends HalfTransparentBlock
 
   private static final VoxelShape X_SHAPE = Block.box(0.0, 0.0, 6.0, 16.0, 16.0, 10.0);
   private static final VoxelShape Z_SHAPE = Block.box(6.0, 0.0, 0.0, 10.0, 16.0, 16.0);
+
+  // pre-built particle options per dye color to avoid allocation in animateTick
+  private static final Map<DyeColor, ColoredPortalParticleOptions> PARTICLE_OPTIONS_BY_COLOR;
+
+  static {
+    PARTICLE_OPTIONS_BY_COLOR = new EnumMap<>(DyeColor.class);
+    for (DyeColor dye : DyeColor.values()) {
+      int rgb = dye.getTextColor();
+      float r = ((rgb >> 16) & 0xFF) / 255.0F;
+      float g = ((rgb >> 8) & 0xFF) / 255.0F;
+      float b = (rgb & 0xFF) / 255.0F;
+      PARTICLE_OPTIONS_BY_COLOR.put(dye, new ColoredPortalParticleOptions(new Vector3f(r, g, b)));
+    }
+  }
 
   public CustomPortalBlock() {
     super(
@@ -273,7 +294,32 @@ public class CustomPortalBlock extends HalfTransparentBlock
           false);
     }
 
-    // TODO: spawn colored particles based on state.getValue(COLOR)
+    // colored portal particles with same vanilla spawn pattern: particles appear at portal
+    // edge with high inward velocity, creating the "pulled into the void" effect
+    ColoredPortalParticleOptions particleOptions = PARTICLE_OPTIONS_BY_COLOR.get(state.getValue(COLOR));
+
+    for (int i = 0; i < 4; i++) {
+      double x = pos.getX() + random.nextDouble();
+      double y = pos.getY() + random.nextDouble();
+      double z = pos.getZ() + random.nextDouble();
+      double vx = (random.nextFloat() - 0.5) * 0.5;
+      double vy = (random.nextFloat() - 0.5) * 0.5;
+      double vz = (random.nextFloat() - 0.5) * 0.5;
+
+      // spawn at portal edge with high inward velocity along thin axis
+      int j = random.nextInt(2) * 2 - 1; // -1 or +1
+      if (state.getValue(AXIS) == Direction.Axis.X) {
+        // portal spans X-Y, thin on Z — particles fly along Z
+        z = pos.getZ() + 0.5 + 0.25 * j;
+        vz = random.nextFloat() * 2.0F * j;
+      } else {
+        // portal spans Z-Y, thin on X — particles fly along X
+        x = pos.getX() + 0.5 + 0.25 * j;
+        vx = random.nextFloat() * 2.0F * j;
+      }
+
+      level.addParticle(particleOptions, x, y, z, vx, vy, vz);
+    }
   }
 
   @Override
@@ -288,7 +334,7 @@ public class CustomPortalBlock extends HalfTransparentBlock
       CustomPortal portal = PortalSavedData.get(level).getRegistry().getPortalAt(pos);
       if (portal != null) {
         BlockPos spawnPos = portal.getSpawnPos();
-        
+
         // cap: don't spawn if 4+ sheep already nearby
         AABB area = new AABB(spawnPos).inflate(16.0);
         if (level.getEntitiesOfClass(Sheep.class, area).size() >= 4) return;

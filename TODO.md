@@ -6,7 +6,4 @@
 
 ## Backlog (Beta+)
 
-- [ ] Colored particles in `animateTick` (currently TODO in code)
-- [ ] Loading screen customization during transition
 - [ ] Frame whitelist/blacklist config
-- [ ] Mob spawning from portals (`randomTick`)
