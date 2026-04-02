@@ -56,12 +56,14 @@ public class CustomPortalBlock extends HalfTransparentBlock
     implements Portal, SimpleWaterloggedBlock {
 
   public static final EnumProperty<DyeColor> COLOR = EnumProperty.create("color", DyeColor.class);
-  public static final EnumProperty<Direction.Axis> AXIS = BlockStateProperties.HORIZONTAL_AXIS;
+  public static final EnumProperty<Direction.Axis> AXIS =
+      EnumProperty.create("axis", Direction.Axis.class);
   public static final BooleanProperty LIT = BlockStateProperties.LIT;
   public static final BooleanProperty WATERLOGGED = BlockStateProperties.WATERLOGGED;
 
   private static final VoxelShape X_SHAPE = Block.box(0.0, 0.0, 6.0, 16.0, 16.0, 10.0);
   private static final VoxelShape Z_SHAPE = Block.box(6.0, 0.0, 0.0, 10.0, 16.0, 16.0);
+  private static final VoxelShape Y_SHAPE = Block.box(0.0, 6.0, 0.0, 16.0, 10.0, 16.0);
 
   // pre-built particle options per dye color to avoid allocation in animateTick
   private static final Map<DyeColor, ColoredPortalParticleOptions> PARTICLE_OPTIONS_BY_COLOR;
@@ -106,7 +108,11 @@ public class CustomPortalBlock extends HalfTransparentBlock
   @Override
   public VoxelShape getShape(
       BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
-    return state.getValue(AXIS) == Direction.Axis.X ? X_SHAPE : Z_SHAPE;
+    return switch (state.getValue(AXIS)) {
+      case X -> X_SHAPE;
+      case Z -> Z_SHAPE;
+      case Y -> Y_SHAPE;
+    };
   }
 
   // PORTAL INTERFACE //
@@ -227,8 +233,14 @@ public class CustomPortalBlock extends HalfTransparentBlock
 
     // axis=X → portal plane is X-Y, thin axis is Z (skip north/south)
     // axis=Z → portal plane is Z-Y, thin axis is X (skip east/west)
+    // axis=Y → portal plane is X-Z, thin axis is Y (skip up/down)
     Direction.Axis portalAxis = state.getValue(AXIS);
-    Direction.Axis thinAxis = portalAxis == Direction.Axis.X ? Direction.Axis.Z : Direction.Axis.X;
+    Direction.Axis thinAxis =
+        switch (portalAxis) {
+          case X -> Direction.Axis.Z;
+          case Z -> Direction.Axis.X;
+          case Y -> Direction.Axis.Y;
+        };
     if (direction.getAxis() != thinAxis
         && !(neighborState.getBlock() instanceof CustomPortalBlock)) {
       if (level instanceof ServerLevel serverLevel) {
@@ -308,14 +320,22 @@ public class CustomPortalBlock extends HalfTransparentBlock
 
       // spawn at portal edge with high inward velocity along thin axis
       int j = random.nextInt(2) * 2 - 1; // -1 or +1
-      if (state.getValue(AXIS) == Direction.Axis.X) {
-        // portal spans X-Y, thin on Z; particles fly along Z
-        z = pos.getZ() + 0.5 + 0.25 * j;
-        vz = random.nextFloat() * 2.0F * j;
-      } else {
-        // portal spans Z-Y, thin on X; particles fly along X
-        x = pos.getX() + 0.5 + 0.25 * j;
-        vx = random.nextFloat() * 2.0F * j;
+      switch (state.getValue(AXIS)) {
+        case X -> {
+          // portal spans X-Y, thin on Z; particles fly along Z
+          z = pos.getZ() + 0.5 + 0.25 * j;
+          vz = random.nextFloat() * 2.0F * j;
+        }
+        case Z -> {
+          // portal spans Z-Y, thin on X; particles fly along X
+          x = pos.getX() + 0.5 + 0.25 * j;
+          vx = random.nextFloat() * 2.0F * j;
+        }
+        case Y -> {
+          // portal spans X-Z, thin on Y; particles fly up/down
+          y = pos.getY() + 0.5 + 0.25 * j;
+          vy = random.nextFloat() * 2.0F * j;
+        }
       }
 
       level.addParticle(particleOptions, x, y, z, vx, vy, vz);

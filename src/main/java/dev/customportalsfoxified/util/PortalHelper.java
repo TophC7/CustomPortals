@@ -40,7 +40,7 @@ public class PortalHelper {
     Set<BlockPos> portalBlocks = null;
     Set<BlockPos> frameBlocks = null;
 
-    for (Direction.Axis candidate : new Direction.Axis[] {Direction.Axis.X, Direction.Axis.Z}) {
+    for (Direction.Axis candidate : Direction.Axis.values()) {
       Set<BlockPos> tryPortal = new HashSet<>();
       Set<BlockPos> tryFrame = new HashSet<>();
       if (detectFrame(level, airPos, frameMaterial, candidate, tryPortal, tryFrame)
@@ -167,21 +167,17 @@ public class PortalHelper {
   }
 
   /**
-   * Get the 4 adjacent positions on the portal plane. For X axis: move in X and Y directions For Z
-   * axis: move in Z and Y directions
+   * Get the 4 adjacent positions on the portal plane.
+   * X axis: portal on X-Y plane → move in X and Y
+   * Z axis: portal on Z-Y plane → move in Z and Y
+   * Y axis: portal on X-Z plane → move in X and Z (horizontal portal)
    */
   private static List<BlockPos> getAdjacentOnPlane(BlockPos pos, Direction.Axis axis) {
-    if (axis == Direction.Axis.X) {
-      // portal plane is X-Y
-      return List.of(
-          pos.above(), pos.below(),
-          pos.east(), pos.west());
-    } else {
-      // portal plane is Z-Y
-      return List.of(
-          pos.above(), pos.below(),
-          pos.north(), pos.south());
-    }
+    return switch (axis) {
+      case X -> List.of(pos.above(), pos.below(), pos.east(), pos.west());
+      case Z -> List.of(pos.above(), pos.below(), pos.north(), pos.south());
+      case Y -> List.of(pos.east(), pos.west(), pos.north(), pos.south());
+    };
   }
 
   // RUNE SCANNING //
