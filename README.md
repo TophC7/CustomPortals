@@ -2,22 +2,22 @@
 
 ![Banner, diorite portal in floating island](public/banner.png)
 
-Build portals out of any block. Create two matching frames, light them with a colored catalyst, and travel between linked portals.
+Custom Portals lets you build portals out of any block. Matching frames link together and allow easy distant travel. You can create networks of portals all across your world and dimensions. 
 
-A NeoForge re-implementation of [Custom Portals](https://modrinth.com/mod/custom-portals) (Fabric).
+This mod is a NeoForge re-implementation of [Custom Portals](https://modrinth.com/mod/custom-portals) (Fabric).
 
 <!-- TODO: screenshot/gif of portal in action -->
 
 ## Portals
 
-Build a rectangular frame using any solid block, then right-click the inside with a **Portal Catalyst**. Create a second frame out of the exact same block, light it with the matching catalyst color, and they link up instantly. Frames can be built upright (vertical portals) or flat on the ground/ceiling (horizontal portals).
+Build a rectangular-ish frame using any solid block, then right-click the inside with a **Portal Catalyst**. Create a second frame out of the exact same block, light it with a matching catalyst color, and they link up instantly.
 
-- Any block works as a frame; stone, wood, diamond blocks, whatever you want
+- Any block works as a frame; stone, leafs, diamond blocks, whatever you want
 - Vertical or horizontal portals work, you can build frames on walls, floors, ceilings, even floating.
 - 16 catalyst colors to organize your portal network
 - Portals link by matching **color + frame material**
 - Same-dimension and cross-dimension travel (with Gate Rune)
-- Colored particles matching your catalyst color
+- Colored particles and portal effects just like vanilla portals
 - Baaaahhh 🐑
 
 <!-- TODO: gif showing portal creation + linking -->
@@ -54,21 +54,21 @@ Without runes, portals link within 100 blocks in the same dimension. Haste on ei
 ![Infinite Rune](public/infinite.png) 
 </details>
 
-## Redstone
-
-When enabled (default), a redstone signal **turns off** a portal. The portal unlinks while powered and automatically relinks when the signal is removed. This works per-portal, so you can selectively disable one end of a link and the freed partner will find a new match if one exists.
-
-This is intentional. It follows vanilla redstone logic IMO (signal = active effect on the block) and enables creative builds. Think of something like ABC portal switching, redstone-controlled travel networks, and multiplayer engineering. There are edge cases with multi-portal setups, and that's by design. Work with them, build around them. It's more fun this way.
-
-Redstone can be fully disabled in config if you don't want it.
-
-<!-- TODO: gif showing redstone toggle -->
-
 ## Linking
 
-Portals link automatically to the nearest compatible unlinked portal (same color + same frame block). When a portal is destroyed or disabled, its partner becomes unlinked and will try to find a new match 🥀
+Portals link automatically to the nearest compatible **unlinked** portal (same catalyst color + same frame block). If a portal is destroyed or disabled, its partner becomes unlinked and will search for a new valid match 🥀
 
-This system is intentionally simple and deterministic. In multiplayer or complex setups with many same-color portals, there are edge cases where relinking may not pick the frame you expected. This is by design; I think it rewards thoughtful portal placement and enables creative network topologies that a stricter system wouldn't allow.
+This system is intentionally simple and deterministic. In multiplayer or dense same-color networks, relinking may choose a different frame than you expected. That is by design: placement/distance and layout matter, and it enables more creative portal topologies.
+
+## Redstone
+
+Redstone behavior is enabled by default: a redstone signal **turns off** a portal. While powered, the portal unlinks; when power is removed, it automatically re-links using the normal linking rules above.
+
+Because this works per-portal, you can disable one end of a pair and let the freed portal find a different compatible partner if one exists. This supports builds like ABC portal switching, redstone-controlled travel networks, and multiplayer routing setups.
+
+You can disable redstone interaction entirely in config if you prefer.
+
+<!-- TODO: gif showing redstone toggle -->
 
 ## Configuration
 
@@ -88,9 +88,9 @@ All settings are in `custom_portals_foxified-common.toml`:
 
 ### Why port?
 
-The original mod works with Sinytra Connector, but connector can break mods and adds overhead. More importantly, the original mod uses mixins to rewrite Minecraft's teleportation sequence, which can cause crashes or data loss with backpack/inventory mods that attach data to players. It's not the original dev's fault, it's just how modding goes.
+The original mod works with Sinytra Connector, but connector can break mods and adds overhead. More importantly, the original mod uses mixins to rewrite Minecraft's teleportation sequence, which can cause crashes or data loss with mods that attach data to players. It's not the original dev's fault, it's just how modding goes.
 
-This port uses NeoForge's native `Portal` interface instead. Vanilla handles all player data and dimension hopping. No mixins, no data loss, better compatibility.
+This port uses NeoForge's native `Portal` interface instead. Vanilla handles all player data and dimension hopping. No mixins, no data loss, so hopefully better compatibility.
 
 Beyond compatibility, this port also includes a number of improvements over the original:
 
@@ -105,7 +105,6 @@ Beyond compatibility, this port also includes a number of improvements over the 
 > - No mixins - the original mod uses EntityMixin, ServerPlayerMixin, and LocalPlayerMixin to rewrite teleportation. This port uses NeoForge's native `Portal` interface so vanilla handles all entity data and dimension transitions cleanly
 >
 >**Gameplay**
-> - Redstone reworked - the original has three modes (OFF/ON/NONE) that only control the visual LIT state. This port uses a single toggle where redstone actually unlinks the portal and relinks when the signal is removed, enabling real redstone contraptions like ABC portal switching
 > - Rune removal revalidates links - in the original, removing a gate rune from a cross-dimension pair leaves them linked. This port properly breaks incompatible links when runes are removed
 >
 </details>
@@ -114,9 +113,10 @@ Beyond compatibility, this port also includes a number of improvements over the 
 
 The original mod's private portals feature is not included. The implementation didn't make practical sense in multiplayer. If you want to travel with a friend, what happens then? If there's real demand for portal access control, I can implement it; but a proper integration would be with something like FTB Teams.
 
-### Redstone Reworked
+### Redstone Modes
 
-The original mod had three redstone modes (off, on, no effect). This port simplifies it to a single toggle: redstone signal disables the portal. It's more intuitive (matches how vanilla redstone interacts with blocks), more useful (enables actual redstone contraptions), and the unlink/relink behavior makes multi-portal setups genuinely interesting. Again, IMO.
+Compared to the original mod’s three redstone modes (`off`, `on`, `no effect`), this port uses one consistent behavior: powered portals are disabled (`redstoneDisables = true` by default).  
+This keeps portal state predictable and supports practical routing builds; see [Redstone](#redstone) for full behavior details.
 
 ## Compatibility
 
