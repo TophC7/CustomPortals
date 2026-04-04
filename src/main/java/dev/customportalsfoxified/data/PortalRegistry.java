@@ -9,13 +9,15 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.item.DyeColor;
 import org.jetbrains.annotations.Nullable;
 
 public class PortalRegistry {
 
-  private final List<CustomPortal> portals = new ArrayList<>();
+  private final LinkedHashSet<CustomPortal> portals = new LinkedHashSet<>();
   private final Map<BlockPos, CustomPortal> positionIndex = new HashMap<>();
   private final Map<UUID, CustomPortal> idIndex = new HashMap<>();
+  private final Map<DyeColor, List<CustomPortal>> colorIndex = new EnumMap<>(DyeColor.class);
 
   public @Nullable CustomPortal getPortalAt(BlockPos pos) {
     return positionIndex.get(pos);
@@ -25,8 +27,13 @@ public class PortalRegistry {
     return idIndex.get(id);
   }
 
-  public List<CustomPortal> getAll() {
-    return Collections.unmodifiableList(portals);
+  public Collection<CustomPortal> getAll() {
+    return Collections.unmodifiableCollection(portals);
+  }
+
+  public List<CustomPortal> getByColor(DyeColor color) {
+    return Collections.unmodifiableList(
+        colorIndex.getOrDefault(color, Collections.emptyList()));
   }
 
   public void registerPortal(CustomPortal portal) {
@@ -35,6 +42,7 @@ public class PortalRegistry {
     for (BlockPos pos : portal.getPortalBlocks()) {
       positionIndex.put(pos, portal);
     }
+    colorIndex.computeIfAbsent(portal.getColor(), k -> new ArrayList<>()).add(portal);
   }
 
   public void removePortal(CustomPortal portal) {
@@ -42,6 +50,11 @@ public class PortalRegistry {
     idIndex.remove(portal.getId());
     for (BlockPos pos : portal.getPortalBlocks()) {
       positionIndex.remove(pos);
+    }
+    List<CustomPortal> colorList = colorIndex.get(portal.getColor());
+    if (colorList != null) {
+      colorList.remove(portal);
+      if (colorList.isEmpty()) colorIndex.remove(portal.getColor());
     }
   }
 
@@ -55,8 +68,7 @@ public class PortalRegistry {
     long bestDistSq = Long.MAX_VALUE;
 
     for (ServerLevel level : server.getAllLevels()) {
-      PortalSavedData data = PortalSavedData.get(level);
-      for (CustomPortal candidate : data.getRegistry().getAll()) {
+      for (CustomPortal candidate : PortalSavedData.registry(level).getByColor(portal.getColor())) {
         if (portal.canLinkWith(candidate)) {
           long distSq = portal.calculateDistanceSquared(candidate);
           if (distSq < bestDistSq) {
@@ -88,14 +100,13 @@ public class PortalRegistry {
   /** Remove a portal and try to relink its former partner. */
   public void removeAndRelink(CustomPortal portal, MinecraftServer server) {
     if (portal.isLinked()) {
-      ServerLevel partnerLevel = server.getLevel(portal.getLinkedDimension());
-      if (partnerLevel != null) {
-        PortalSavedData partnerData = PortalSavedData.get(partnerLevel);
-        CustomPortal partner = partnerData.getRegistry().getPortalById(portal.getLinkedPortalId());
-        if (partner != null) {
-          partner.unlink();
+      CustomPortal partner = PortalSavedData.resolveLinkedPartner(portal, server);
+      if (partner != null) {
+        partner.unlink();
+        ServerLevel partnerLevel = server.getLevel(partner.getDimension());
+        if (partnerLevel != null) {
           CustomPortalBlock.updateLitState(partnerLevel, partner);
-          // try to find a new partner (will push LIT again if successful)
+          PortalSavedData partnerData = PortalSavedData.get(partnerLevel);
           partnerData.getRegistry().tryLinkAcrossAll(partner, server);
           partnerData.setDirty();
         }
@@ -118,6 +129,7 @@ public class PortalRegistry {
     portals.clear();
     positionIndex.clear();
     idIndex.clear();
+    colorIndex.clear();
     if (tag.contains("portals")) {
       ListTag list = tag.getList("portals", Tag.TAG_COMPOUND);
       for (int i = 0; i < list.size(); i++) {

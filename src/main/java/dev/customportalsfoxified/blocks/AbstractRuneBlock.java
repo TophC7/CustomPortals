@@ -116,25 +116,20 @@ public abstract class AbstractRuneBlock extends FaceAttachedHorizontalDirectiona
 
         // rune removal may invalidate the current link
         // (gate removed from cross-dim pair, or enhancer removed and now out of range)
-        if (portal.isLinked() && portal.getLinkedDimension() != null) {
+        if (portal.isLinked()) {
           net.minecraft.server.MinecraftServer server = level.getServer();
-          ServerLevel partnerLevel = server.getLevel(portal.getLinkedDimension());
-          if (partnerLevel != null) {
-            CustomPortal partner =
-                PortalSavedData.get(partnerLevel)
-                    .getRegistry()
-                    .getPortalById(portal.getLinkedPortalId());
-            if (partner != null && !portal.isCompatibleWith(partner)) {
-              portal.unlink();
-              partner.unlink();
-              CustomPortalBlock.updateLitState(level, portal);
+          CustomPortal partner = PortalSavedData.resolveLinkedPartner(portal, server);
+          if (partner != null && !portal.isCompatibleWith(partner)) {
+            portal.unlinkFrom(partner);
+            CustomPortalBlock.updateLitState(level, portal);
+            ServerLevel partnerLevel = server.getLevel(partner.getDimension());
+            if (partnerLevel != null) {
               CustomPortalBlock.updateLitState(partnerLevel, partner);
-              // try to find new partners for both (will push LIT again if successful)
-              data.getRegistry().tryLinkAcrossAll(portal, server);
               PortalSavedData partnerData = PortalSavedData.get(partnerLevel);
               partnerData.getRegistry().tryLinkAcrossAll(partner, server);
               partnerData.setDirty();
             }
+            data.getRegistry().tryLinkAcrossAll(portal, server);
           }
         }
 

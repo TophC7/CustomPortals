@@ -46,6 +46,7 @@ public class PortalHelper {
       Set<BlockPos> tryFrame = new HashSet<>();
       if (detectFrame(level, airPos, frameMaterial, candidate, tryPortal, tryFrame)
           && !tryPortal.isEmpty()
+          && tryPortal.size() >= SafeConfig.getInt(CPConfig.MIN_PORTAL_SIZE, 1)
           && tryPortal.size() <= SafeConfig.getInt(CPConfig.MAX_PORTAL_SIZE, 64)) {
         // prefer the axis that finds more portal blocks (larger valid frame)
         if (portalBlocks == null || tryPortal.size() > portalBlocks.size()) {

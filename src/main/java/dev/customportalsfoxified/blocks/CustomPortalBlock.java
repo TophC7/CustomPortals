@@ -126,7 +126,7 @@ public class CustomPortalBlock extends HalfTransparentBlock
   @Override
   public @Nullable DimensionTransition getPortalDestination(
       ServerLevel level, Entity entity, BlockPos pos) {
-    CustomPortal portal = PortalSavedData.get(level).getRegistry().getPortalAt(pos);
+    CustomPortal portal = PortalSavedData.registry(level).getPortalAt(pos);
     if (portal == null || !portal.isLinked()) return null;
 
     ServerLevel destLevel = level.getServer().getLevel(portal.getLinkedDimension());
@@ -137,7 +137,7 @@ public class CustomPortalBlock extends HalfTransparentBlock
     }
 
     CustomPortal linked =
-        PortalSavedData.get(destLevel).getRegistry().getPortalById(portal.getLinkedPortalId());
+        PortalSavedData.registry(destLevel).getPortalById(portal.getLinkedPortalId());
     if (linked == null) {
       CustomPortalsFoxified.LOGGER.warn(
           "Linked portal {} not found in {}",
@@ -158,18 +158,13 @@ public class CustomPortalBlock extends HalfTransparentBlock
 
   @Override
   public int getPortalTransitionTime(ServerLevel level, Entity entity) {
-    CustomPortal portal =
-        PortalSavedData.get(level).getRegistry().getPortalAt(entity.blockPosition());
+    CustomPortal portal = PortalSavedData.registry(level).getPortalAt(entity.blockPosition());
     if (portal != null && portal.hasHaste()) return 1;
 
     // haste on the destination portal also grants instant transition
     if (portal != null && portal.isLinked()) {
-      ServerLevel destLevel = level.getServer().getLevel(portal.getLinkedDimension());
-      if (destLevel != null) {
-        CustomPortal linked =
-            PortalSavedData.get(destLevel).getRegistry().getPortalById(portal.getLinkedPortalId());
-        if (linked != null && linked.hasHaste()) return 1;
-      }
+      CustomPortal linked = PortalSavedData.resolveLinkedPartner(portal, level.getServer());
+      if (linked != null && linked.hasHaste()) return 1;
     }
 
     // match vanilla nether portal behavior: creative=1 tick, survival=80,
@@ -245,7 +240,7 @@ public class CustomPortalBlock extends HalfTransparentBlock
     if (direction.getAxis() != thinAxis
         && !(neighborState.getBlock() instanceof CustomPortalBlock)) {
       if (level instanceof ServerLevel serverLevel) {
-        CustomPortal portal = PortalSavedData.get(serverLevel).getRegistry().getPortalAt(pos);
+        CustomPortal portal = PortalSavedData.registry(serverLevel).getPortalAt(pos);
         if (portal != null) {
           // forward lookup (ResourceLocation → Block) is cheaper than
           // reverse lookup (Block → ResourceLocation) on every neighbor change
@@ -352,7 +347,7 @@ public class CustomPortalBlock extends HalfTransparentBlock
     // this roughly once every ~3.4 real-time hours per portal block
     if (random.nextInt(1000) == 0
         && level.getGameRules().getBoolean(GameRules.RULE_DOMOBSPAWNING)) {
-      CustomPortal portal = PortalSavedData.get(level).getRegistry().getPortalAt(pos);
+      CustomPortal portal = PortalSavedData.registry(level).getPortalAt(pos);
       if (portal != null) {
         BlockPos spawnPos = portal.getSpawnPos();
 
@@ -421,25 +416,20 @@ public class CustomPortalBlock extends HalfTransparentBlock
       // redstone applied: mark disabled, unlink, let partner find a new match
       portal.setRedstoneDisabled(true);
 
-      if (portal.isLinked() && portal.getLinkedDimension() != null) {
+      if (portal.isLinked()) {
         net.minecraft.server.MinecraftServer server = serverLevel.getServer();
-        ServerLevel partnerLevel = server.getLevel(portal.getLinkedDimension());
-        CustomPortal partner = null;
-        if (partnerLevel != null) {
-          partner =
-              PortalSavedData.get(partnerLevel)
-                  .getRegistry()
-                  .getPortalById(portal.getLinkedPortalId());
-        }
-
-        portal.unlink();
+        CustomPortal partner = PortalSavedData.resolveLinkedPartner(portal, server);
         if (partner != null) {
-          partner.unlink();
-          updateLitState(partnerLevel, partner);
-          // partner is free, try to find a new match (won't pick this portal, it's disabled)
-          PortalSavedData partnerData = PortalSavedData.get(partnerLevel);
-          partnerData.getRegistry().tryLinkAcrossAll(partner, server);
-          partnerData.setDirty();
+          portal.unlinkFrom(partner);
+          ServerLevel partnerLevel = server.getLevel(partner.getDimension());
+          if (partnerLevel != null) {
+            updateLitState(partnerLevel, partner);
+            PortalSavedData partnerData = PortalSavedData.get(partnerLevel);
+            partnerData.getRegistry().tryLinkAcrossAll(partner, server);
+            partnerData.setDirty();
+          }
+        } else {
+          portal.unlink();
         }
       }
       updateLitState(serverLevel, portal);

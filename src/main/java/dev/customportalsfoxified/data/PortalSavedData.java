@@ -2,8 +2,10 @@ package dev.customportalsfoxified.data;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.saveddata.SavedData;
+import org.jetbrains.annotations.Nullable;
 
 public class PortalSavedData extends SavedData {
 
@@ -20,6 +22,23 @@ public class PortalSavedData extends SavedData {
 
   public PortalRegistry getRegistry() {
     return registry;
+  }
+
+  /** Shorthand for {@code get(level).getRegistry()} at pure-lookup sites. */
+  public static PortalRegistry registry(ServerLevel level) {
+    return get(level).getRegistry();
+  }
+
+  /**
+   * Resolve a portal's linked partner across dimensions.
+   * Returns null if unlinked, dimension missing, or partner no longer exists.
+   */
+  public static @Nullable CustomPortal resolveLinkedPartner(
+      CustomPortal portal, MinecraftServer server) {
+    if (!portal.isLinked() || portal.getLinkedDimension() == null) return null;
+    ServerLevel partnerLevel = server.getLevel(portal.getLinkedDimension());
+    if (partnerLevel == null) return null;
+    return registry(partnerLevel).getPortalById(portal.getLinkedPortalId());
   }
 
   @Override

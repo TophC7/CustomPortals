@@ -23,7 +23,7 @@ public class PortalEventHandler {
     if (!commonConfigValidated && CPConfig.COMMON_SPEC.isLoaded()) {
       commonConfigValidated = true;
       SafeConfig.validateOrReset(CustomPortalsFoxified.MOD_ID, CPConfig.COMMON_SPEC,
-          "common", CPConfig.MAX_PORTAL_SIZE, CPConfig.BASE_RANGE);
+          "common", CPConfig.MAX_PORTAL_SIZE, CPConfig.MIN_PORTAL_SIZE, CPConfig.BASE_RANGE);
     }
   }
 

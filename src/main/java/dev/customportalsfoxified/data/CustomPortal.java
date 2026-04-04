@@ -123,6 +123,13 @@ public class CustomPortal {
     other.linkedDimension = this.dimension;
   }
 
+  /** Bilateral: clears both this portal's and its partner's link fields. */
+  public void unlinkFrom(CustomPortal partner) {
+    this.unlink();
+    partner.unlink();
+  }
+
+  /** Unilateral: clears only this portal's link fields. */
   public void unlink() {
     this.linkedPortalId = null;
     this.linkedDimension = null;

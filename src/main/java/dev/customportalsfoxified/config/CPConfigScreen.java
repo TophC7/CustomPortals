@@ -32,11 +32,13 @@ public final class CPConfigScreen {
               CPConfig.BASE_RANGE));
           tab.nextRow();
 
-          tab.left(tab.toggle("Cross-Dimension", CPConfig.ALLOW_CROSS_DIMENSION));
+          tab.left(tab.intSlider("Min Portal Size", " blocks", 1, 900, 1,
+              CPConfig.MIN_PORTAL_SIZE));
           tab.right(tab.intField("Enhanced Range", 1, Integer.MAX_VALUE,
               CPConfig.ENHANCED_RANGE));
           tab.nextRow();
 
+          tab.left(tab.toggle("Cross-Dimension", CPConfig.ALLOW_CROSS_DIMENSION));
           tab.right(tab.intField("Strong Range", 1, Integer.MAX_VALUE,
               CPConfig.STRONG_RANGE));
           tab.nextRow();

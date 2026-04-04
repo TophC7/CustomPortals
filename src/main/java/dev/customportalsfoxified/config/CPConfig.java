@@ -14,6 +14,7 @@ public class CPConfig {
   // COMMON: server-authoritative gameplay settings //
 
   public static final ModConfigSpec.IntValue MAX_PORTAL_SIZE;
+  public static final ModConfigSpec.IntValue MIN_PORTAL_SIZE;
   public static final ModConfigSpec.IntValue BASE_RANGE;
   public static final ModConfigSpec.IntValue ENHANCED_RANGE;
   public static final ModConfigSpec.IntValue STRONG_RANGE;
@@ -34,6 +35,10 @@ public class CPConfig {
         common
             .comment("Maximum number of blocks a portal frame can enclose")
             .defineInRange("maxPortalSize", 64, 4, 900);
+    MIN_PORTAL_SIZE =
+        common
+            .comment("Minimum number of blocks a portal frame must enclose")
+            .defineInRange("minPortalSize", 1, 1, 900);
     BASE_RANGE =
         common
             .comment("Base linking range (no enhancer runes)")
