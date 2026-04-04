@@ -17,6 +17,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import xyz.kwahson.core.config.SafeConfig;
 
 public class PortalHelper {
 
@@ -45,7 +46,7 @@ public class PortalHelper {
       Set<BlockPos> tryFrame = new HashSet<>();
       if (detectFrame(level, airPos, frameMaterial, candidate, tryPortal, tryFrame)
           && !tryPortal.isEmpty()
-          && tryPortal.size() <= CPConfig.MAX_PORTAL_SIZE.get()) {
+          && tryPortal.size() <= SafeConfig.getInt(CPConfig.MAX_PORTAL_SIZE, 64)) {
         // prefer the axis that finds more portal blocks (larger valid frame)
         if (portalBlocks == null || tryPortal.size() > portalBlocks.size()) {
           axis = candidate;
@@ -135,7 +136,7 @@ public class PortalHelper {
     Set<BlockPos> visited = new HashSet<>();
     stack.push(start);
 
-    int maxSize = CPConfig.MAX_PORTAL_SIZE.get();
+    int maxSize = SafeConfig.getInt(CPConfig.MAX_PORTAL_SIZE, 64);
 
     while (!stack.isEmpty()) {
       BlockPos current = stack.pop();

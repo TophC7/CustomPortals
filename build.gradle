@@ -25,6 +25,7 @@ neoForge {
         server {
             server()
             programArgument '--nogui'
+            jvmArgument '-Djava.net.preferIPv4Stack=true'
         }
         configureEach {
             logLevel = org.slf4j.event.Level.DEBUG
@@ -56,8 +57,26 @@ var generateModMetadata = tasks.register("generateModMetadata", ProcessResources
     into "build/generated/sources/modMetadata"
 }
 
+sourceSets.main.java.srcDir "${kwahscore_path}/src/main/java"
 sourceSets.main.resources.srcDir generateModMetadata
 neoForge.ideSyncTask generateModMetadata
+
+dependencies {
+    // Embed KwahsCore via JarJar for production (dedup-safe when multiple mods are installed)
+    // Resolved from source via includeBuild in settings.gradle, no publishing needed
+    jarJar("xyz.kwahson.core:kwahs_core:[0.1.0,1.0.0)") {
+        version {
+            prefer '0.1.0'
+        }
+    }
+}
+
+// Exclude KwahsCore classes from the main jar -- JarJar embeds them as a nested jar.
+// srcDir still compiles them for dev runtime (runClient), but production builds
+// must use JarJar so NeoForge can deduplicate across multiple mods.
+tasks.named('jar', Jar) {
+    exclude 'xyz/kwahson/core/**'
+}
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'

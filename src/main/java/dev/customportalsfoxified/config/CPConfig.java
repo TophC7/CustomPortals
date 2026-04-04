@@ -4,53 +4,57 @@ import net.neoforged.neoforge.common.ModConfigSpec;
 
 public class CPConfig {
 
-  public static final ModConfigSpec SPEC;
+  public static final ModConfigSpec CLIENT_SPEC;
+  public static final ModConfigSpec COMMON_SPEC;
 
-  // PORTAL SETTINGS //
+  // CLIENT: per-player preferences //
+
+  public static final ModConfigSpec.BooleanValue MUTE_SOUNDS;
+
+  // COMMON: server-authoritative gameplay settings //
 
   public static final ModConfigSpec.IntValue MAX_PORTAL_SIZE;
   public static final ModConfigSpec.IntValue BASE_RANGE;
   public static final ModConfigSpec.IntValue ENHANCED_RANGE;
   public static final ModConfigSpec.IntValue STRONG_RANGE;
   public static final ModConfigSpec.BooleanValue ALLOW_CROSS_DIMENSION;
-  public static final ModConfigSpec.BooleanValue MUTE_SOUNDS;
-
-  // REDSTONE //
-
   public static final ModConfigSpec.BooleanValue REDSTONE_DISABLES;
 
   static {
-    var builder = new ModConfigSpec.Builder();
+    // Client spec: settings that only affect the local player
+    var client = new ModConfigSpec.Builder();
+    MUTE_SOUNDS =
+        client.comment("Mute portal ambient and teleport sounds").define("muteSounds", false);
+    CLIENT_SPEC = client.build();
 
-    builder.push("portals");
+    // Common spec: gameplay rules shared between client and server
+    var common = new ModConfigSpec.Builder();
+    common.push("portals");
     MAX_PORTAL_SIZE =
-        builder
+        common
             .comment("Maximum number of blocks a portal frame can enclose")
             .defineInRange("maxPortalSize", 64, 4, 900);
     BASE_RANGE =
-        builder
+        common
             .comment("Base linking range (no enhancer runes)")
             .defineInRange("baseRange", 100, 1, Integer.MAX_VALUE);
     ENHANCED_RANGE =
-        builder
+        common
             .comment("Linking range with weak enhancer runes")
             .defineInRange("enhancedRange", 1000, 1, Integer.MAX_VALUE);
     STRONG_RANGE =
-        builder
+        common
             .comment("Linking range with strong enhancer runes")
             .defineInRange("strongRange", 10000, 1, Integer.MAX_VALUE);
     ALLOW_CROSS_DIMENSION =
-        builder
+        common
             .comment("Whether gate runes can link portals across dimensions")
             .define("allowCrossDimension", true);
-    MUTE_SOUNDS =
-        builder.comment("Mute portal ambient and teleport sounds").define("muteSounds", false);
     REDSTONE_DISABLES =
-        builder
+        common
             .comment("When true, a redstone signal turns off adjacent portal blocks")
             .define("redstoneDisables", true);
-    builder.pop();
-
-    SPEC = builder.build();
+    common.pop();
+    COMMON_SPEC = common.build();
   }
 }

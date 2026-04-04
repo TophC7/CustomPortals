@@ -15,6 +15,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.Nullable;
+import xyz.kwahson.core.config.SafeConfig;
 
 public class CustomPortal {
 
@@ -144,7 +145,7 @@ public class CustomPortal {
     // cross-dimension requires gate rune on at least one side
     boolean crossDimension = !this.dimension.equals(other.dimension);
     if (crossDimension) {
-      if (!CPConfig.ALLOW_CROSS_DIMENSION.get()) return false;
+      if (!SafeConfig.getBool(CPConfig.ALLOW_CROSS_DIMENSION, true)) return false;
       if (!this.hasGate && !other.hasGate) return false;
     }
 
@@ -195,10 +196,10 @@ public class CustomPortal {
 
   private static int getRangeForTier(int tier) {
     return switch (tier) {
-      case 1 -> CPConfig.ENHANCED_RANGE.get();
-      case 2 -> CPConfig.STRONG_RANGE.get();
+      case 1 -> SafeConfig.getInt(CPConfig.ENHANCED_RANGE, 1000);
+      case 2 -> SafeConfig.getInt(CPConfig.STRONG_RANGE, 10000);
       case 3 -> Integer.MAX_VALUE;
-      default -> CPConfig.BASE_RANGE.get();
+      default -> SafeConfig.getInt(CPConfig.BASE_RANGE, 100);
     };
   }
 

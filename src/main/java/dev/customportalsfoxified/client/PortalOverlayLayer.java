@@ -3,6 +3,7 @@ package dev.customportalsfoxified.client;
 import com.mojang.blaze3d.systems.RenderSystem;
 import dev.customportalsfoxified.CustomPortalsFoxified;
 import dev.customportalsfoxified.ModBlocks;
+import dev.customportalsfoxified.config.CPConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.player.LocalPlayer;
@@ -13,8 +14,11 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RenderGuiLayerEvent;
+import net.neoforged.neoforge.client.event.sound.PlaySoundEvent;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
+import xyz.kwahson.core.config.SafeConfig;
 
 /**
  * Replaces the vanilla purple nether portal overlay with a colored one.
@@ -29,10 +33,38 @@ import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 @EventBusSubscriber(modid = CustomPortalsFoxified.MOD_ID, value = Dist.CLIENT)
 public class PortalOverlayLayer {
 
+  private static boolean clientConfigValidated;
   private static long lastTickedGameTime = -1;
   private static float savedIntensity = 0;
   private static float savedOldIntensity = 0;
   private static boolean suppressed = false;
+
+  @SubscribeEvent
+  public static void onClientTick(ClientTickEvent.Pre event) {
+    if (!clientConfigValidated && CPConfig.CLIENT_SPEC.isLoaded()) {
+      clientConfigValidated = true;
+      SafeConfig.validateOrReset(CustomPortalsFoxified.MOD_ID, CPConfig.CLIENT_SPEC,
+          CPConfig.MUTE_SOUNDS);
+    }
+  }
+
+  /**
+   * Suppresses portal trigger and travel sounds when muted and in a custom portal.
+   * Ambient sounds are already handled in CustomPortalBlock.animateTick.
+   */
+  @SubscribeEvent
+  public static void onPlaySound(PlaySoundEvent event) {
+    if (!SafeConfig.getBool(CPConfig.MUTE_SOUNDS, false)) return;
+
+    boolean inCustomPortal =
+        ClientPortalState.getOverlayColor() >= 0 || ClientPortalState.isOnCooldown();
+    if (!inCustomPortal) return;
+
+    String name = event.getName();
+    if (name.equals("block.portal.trigger") || name.equals("block.portal.travel")) {
+      event.setSound(null);
+    }
+  }
 
   @SubscribeEvent
   public static void onPreCameraOverlays(RenderGuiLayerEvent.Pre event) {

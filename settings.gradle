@@ -11,3 +11,6 @@ plugins {
 }
 
 rootProject.name = 'custom_portals_foxified'
+
+// Composite build: resolve KwahsCore from source (no publishToMavenLocal needed)
+includeBuild('../KwahsCore')

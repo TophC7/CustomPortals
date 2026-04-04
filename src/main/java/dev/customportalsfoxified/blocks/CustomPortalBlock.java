@@ -3,8 +3,8 @@ package dev.customportalsfoxified.blocks;
 import dev.customportalsfoxified.CustomPortalsFoxified;
 import dev.customportalsfoxified.ModAttachments;
 import dev.customportalsfoxified.config.CPConfig;
-import dev.customportalsfoxified.ModItems;
 import dev.customportalsfoxified.data.CustomPortal;
+import dev.customportalsfoxified.ModItems;
 import dev.customportalsfoxified.data.PortalSavedData;
 import dev.customportalsfoxified.network.SyncPortalColorPayload;
 import dev.customportalsfoxified.particle.ColoredPortalParticleOptions;
@@ -50,6 +50,7 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.jetbrains.annotations.Nullable;
+import xyz.kwahson.core.config.SafeConfig;
 import org.joml.Vector3f;
 
 public class CustomPortalBlock extends HalfTransparentBlock
@@ -294,7 +295,7 @@ public class CustomPortalBlock extends HalfTransparentBlock
   public void animateTick(BlockState state, Level level, BlockPos pos, RandomSource random) {
     if (!state.getValue(LIT)) return;
 
-    if (!CPConfig.MUTE_SOUNDS.get() && random.nextInt(100) == 0) {
+    if (!SafeConfig.getBool(CPConfig.MUTE_SOUNDS, false) && random.nextInt(100) == 0) {
       level.playLocalSound(
           pos.getX() + 0.5,
           pos.getY() + 0.5,
@@ -407,7 +408,7 @@ public class CustomPortalBlock extends HalfTransparentBlock
   @Override
   public void neighborChanged(
       BlockState state, Level level, BlockPos pos, Block block, BlockPos fromPos, boolean isMoving) {
-    if (level.isClientSide() || !CPConfig.REDSTONE_DISABLES.get()) return;
+    if (level.isClientSide() || !SafeConfig.getBool(CPConfig.REDSTONE_DISABLES, true)) return;
 
     ServerLevel serverLevel = (ServerLevel) level;
     PortalSavedData data = PortalSavedData.get(serverLevel);
