@@ -72,7 +72,15 @@ You can disable redstone interaction entirely in config if you prefer.
 
 ## Configuration
 
-All settings are in `custom_portals_foxified-common.toml`:
+Settings are split between two config files and can be edited in-game via the mod config screen (Mod Menu or the Mods button).
+
+**Client** (`custom_portals_foxified-client.toml`):
+
+| Setting | Default | Description |
+|---|---|---|
+| `muteSounds` | false | Mute portal ambient, trigger, and teleport sounds |
+
+**Common** (`custom_portals_foxified-common.toml`) server-controlled:
 
 | Setting | Default | Description |
 |---|---|---|
@@ -81,7 +89,6 @@ All settings are in `custom_portals_foxified-common.toml`:
 | `enhancedRange` | 1,000 | Linking range with weak enhancer rune |
 | `strongRange` | 10,000 | Linking range with strong enhancer rune |
 | `allowCrossDimension` | true | Whether Gate Runes can link across dimensions |
-| `muteSounds` | false | Mute portal ambient and teleport sounds |
 | `redstoneDisables` | true | Redstone signal turns off adjacent portals |
 
 ## Differences from the Original
