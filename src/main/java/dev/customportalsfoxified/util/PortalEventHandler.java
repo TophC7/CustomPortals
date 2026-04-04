@@ -8,6 +8,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 import xyz.kwahson.core.config.SafeConfig;
@@ -24,6 +25,13 @@ public class PortalEventHandler {
       SafeConfig.validateOrReset(CustomPortalsFoxified.MOD_ID, CPConfig.COMMON_SPEC,
           "common", CPConfig.MAX_PORTAL_SIZE, CPConfig.BASE_RANGE);
     }
+  }
+
+  // reset so config is re-validated on next server start within the same JVM
+  // (singleplayer: quit world -> new world without restarting)
+  @SubscribeEvent
+  public static void onServerStopped(ServerStoppedEvent event) {
+    commonConfigValidated = false;
   }
 
   // NOTE: NeoForge bug #2510

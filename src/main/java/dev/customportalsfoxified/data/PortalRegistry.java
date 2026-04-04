@@ -46,31 +46,43 @@ public class PortalRegistry {
   }
 
   /**
-   * Try to link a portal with any compatible unlinked portal across all dimensions. Returns the
-   * linked partner if successful.
+   * Try to link a portal with the closest compatible unlinked portal across all dimensions.
+   * Returns the linked partner if successful.
    */
   public @Nullable CustomPortal tryLinkAcrossAll(CustomPortal portal, MinecraftServer server) {
+    CustomPortal bestCandidate = null;
+    ServerLevel bestLevel = null;
+    long bestDistSq = Long.MAX_VALUE;
+
     for (ServerLevel level : server.getAllLevels()) {
       PortalSavedData data = PortalSavedData.get(level);
       for (CustomPortal candidate : data.getRegistry().getAll()) {
         if (portal.canLinkWith(candidate)) {
-          portal.link(candidate);
-          data.setDirty();
-
-          // push LIT state on both portals now that they're linked
-          CustomPortalBlock.updateLitState(level, candidate);
-          ServerLevel portalLevel = server.getLevel(portal.getDimension());
-          if (portalLevel != null) {
-            CustomPortalBlock.updateLitState(portalLevel, portal);
+          long distSq = portal.calculateDistanceSquared(candidate);
+          if (distSq < bestDistSq) {
+            bestCandidate = candidate;
+            bestLevel = level;
+            bestDistSq = distSq;
           }
-
-          CustomPortalsFoxified.LOGGER.debug(
-              "Linked portals {} <-> {}", portal.getId(), candidate.getId());
-          return candidate;
         }
       }
     }
-    return null;
+
+    if (bestCandidate == null) return null;
+
+    portal.link(bestCandidate);
+    PortalSavedData.get(bestLevel).setDirty();
+
+    // push LIT state on both portals now that they're linked
+    CustomPortalBlock.updateLitState(bestLevel, bestCandidate);
+    ServerLevel portalLevel = server.getLevel(portal.getDimension());
+    if (portalLevel != null) {
+      CustomPortalBlock.updateLitState(portalLevel, portal);
+    }
+
+    CustomPortalsFoxified.LOGGER.debug(
+        "Linked portals {} <-> {}", portal.getId(), bestCandidate.getId());
+    return bestCandidate;
   }
 
   /** Remove a portal and try to relink its former partner. */
@@ -110,7 +122,11 @@ public class PortalRegistry {
       ListTag list = tag.getList("portals", Tag.TAG_COMPOUND);
       for (int i = 0; i < list.size(); i++) {
         CustomPortal portal = CustomPortal.load(list.getCompound(i));
-        registerPortal(portal);
+        if (portal != null) {
+          registerPortal(portal);
+        } else {
+          CustomPortalsFoxified.LOGGER.warn("Skipping corrupted portal entry at index {}", i);
+        }
       }
     }
   }

@@ -16,3 +16,11 @@
 - [ ] Make `unlink()` bilateral or rename to `clearLink()` - currently asymmetric with `link()` (bilateral), maintenance hazard
 - [ ] Validate minimum portal dimensions (1w × 2h) - prevents 1-tall portals that trap entities on arrival
 - [ ] Nether-to-nether range gets implicit 8x boost - both coords unscaled, design question whether this is intended
+
+## Fixed (code review audit)
+
+- [x] `CustomPortal.load()` - corrupted NBT (bad ResourceLocation) crashed world load; now returns null, PortalRegistry skips bad entries
+- [x] `PortalEventHandler` - static `commonConfigValidated` flag survived JVM server restarts; now resets on `ServerStoppedEvent`
+- [x] Rune types (haste/gate/infinity) used booleans instead of counters - removing one of N identical runes incorrectly disabled the effect; now all rune types use int counters with backward-compatible deserialization
+- [x] `tryLinkAcrossAll` picked first-encountered portal, not closest - now scans all candidates and links to minimum distance
+- [x] Defensive null checks on `getLinkedDimension()` in AbstractRuneBlock and CustomPortalBlock neighborChanged

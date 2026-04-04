@@ -30,10 +30,12 @@ public class CustomPortal {
   private @Nullable ResourceKey<Level> linkedDimension;
 
   // RUNE STATE //
+  // all rune types use counters so removing one of N identical runes
+  // doesn't incorrectly disable the effect
 
-  private boolean hasHaste;
-  private boolean hasGate;
-  private boolean hasInfinity;
+  private int hasteCount;
+  private int gateCount;
+  private int infinityCount;
   private int weakEnhancerCount;
   private int strongEnhancerCount;
 
@@ -101,15 +103,15 @@ public class CustomPortal {
   }
 
   public boolean hasHaste() {
-    return hasHaste;
+    return hasteCount > 0;
   }
 
   public boolean hasGate() {
-    return hasGate;
+    return gateCount > 0;
   }
 
   public boolean hasInfinity() {
-    return hasInfinity;
+    return infinityCount > 0;
   }
 
   // LINKING //
@@ -146,7 +148,7 @@ public class CustomPortal {
     boolean crossDimension = !this.dimension.equals(other.dimension);
     if (crossDimension) {
       if (!SafeConfig.getBool(CPConfig.ALLOW_CROSS_DIMENSION, true)) return false;
-      if (!this.hasGate && !other.hasGate) return false;
+      if (!this.hasGate() && !other.hasGate()) return false;
     }
 
     return isInRange(other);
@@ -161,7 +163,7 @@ public class CustomPortal {
     return distSq <= (long) range * range;
   }
 
-  private long calculateDistanceSquared(CustomPortal other) {
+  long calculateDistanceSquared(CustomPortal other) {
     long x1 = this.spawnPos.getX();
     long z1 = this.spawnPos.getZ();
     long x2 = other.spawnPos.getX();
@@ -187,7 +189,7 @@ public class CustomPortal {
   // ENHANCEMENT //
 
   public int getEnhancementTier() {
-    if (hasInfinity) return 3;
+    if (infinityCount > 0) return 3;
     int tier = 0;
     tier += weakEnhancerCount;
     tier += strongEnhancerCount * 2;
@@ -207,9 +209,9 @@ public class CustomPortal {
 
   public void addRune(RuneType type) {
     switch (type) {
-      case HASTE -> hasHaste = true;
-      case GATE -> hasGate = true;
-      case INFINITY -> hasInfinity = true;
+      case HASTE -> hasteCount++;
+      case GATE -> gateCount++;
+      case INFINITY -> infinityCount++;
       case WEAK_ENHANCER -> weakEnhancerCount++;
       case STRONG_ENHANCER -> strongEnhancerCount++;
     }
@@ -217,9 +219,9 @@ public class CustomPortal {
 
   public void removeRune(RuneType type) {
     switch (type) {
-      case HASTE -> hasHaste = false;
-      case GATE -> hasGate = false;
-      case INFINITY -> hasInfinity = false;
+      case HASTE -> hasteCount = Math.max(0, hasteCount - 1);
+      case GATE -> gateCount = Math.max(0, gateCount - 1);
+      case INFINITY -> infinityCount = Math.max(0, infinityCount - 1);
       case WEAK_ENHANCER -> weakEnhancerCount = Math.max(0, weakEnhancerCount - 1);
       case STRONG_ENHANCER -> strongEnhancerCount = Math.max(0, strongEnhancerCount - 1);
     }
@@ -249,9 +251,9 @@ public class CustomPortal {
       tag.putString("linkedDimension", linkedDimension.location().toString());
     }
 
-    tag.putBoolean("hasHaste", hasHaste);
-    tag.putBoolean("hasGate", hasGate);
-    tag.putBoolean("hasInfinity", hasInfinity);
+    tag.putInt("hasteCount", hasteCount);
+    tag.putInt("gateCount", gateCount);
+    tag.putInt("infinityCount", infinityCount);
     tag.putInt("weakEnhancers", weakEnhancerCount);
     tag.putInt("strongEnhancers", strongEnhancerCount);
     tag.putBoolean("redstoneDisabled", redstoneDisabled);
@@ -259,46 +261,61 @@ public class CustomPortal {
     return tag;
   }
 
-  public static CustomPortal load(CompoundTag tag) {
-    UUID id = tag.getUUID("id");
-    DyeColor color = DyeColor.byId(tag.getInt("color"));
-    ResourceLocation frameMaterial = ResourceLocation.parse(tag.getString("frameMaterial"));
-    ResourceKey<Level> dimension =
-        ResourceKey.create(
-            net.minecraft.core.registries.Registries.DIMENSION,
-            ResourceLocation.parse(tag.getString("dimension")));
-
-    BlockPos spawnPos =
-        new BlockPos(tag.getInt("spawnX"), tag.getInt("spawnY"), tag.getInt("spawnZ"));
-
-    Set<BlockPos> portalBlocks = new HashSet<>();
-    // portalBlocks is a list of IntArrayTag [x, y, z] NOT CompoundTag
-    ListTag blocksList = tag.getList("portalBlocks", Tag.TAG_INT_ARRAY);
-    for (int i = 0; i < blocksList.size(); i++) {
-      int[] coords = blocksList.getIntArray(i);
-      if (coords.length == 3) {
-        portalBlocks.add(new BlockPos(coords[0], coords[1], coords[2]));
-      }
-    }
-
-    CustomPortal portal =
-        new CustomPortal(id, color, frameMaterial, dimension, spawnPos, portalBlocks);
-
-    if (tag.contains("linkedPortalId")) {
-      portal.linkedPortalId = tag.getUUID("linkedPortalId");
-      portal.linkedDimension =
+  /**
+   * Deserialize a portal from NBT. Returns null if the data is malformed
+   * so callers can skip the entry instead of crashing.
+   */
+  public static @Nullable CustomPortal load(CompoundTag tag) {
+    try {
+      UUID id = tag.getUUID("id");
+      DyeColor color = DyeColor.byId(tag.getInt("color"));
+      ResourceLocation frameMaterial = ResourceLocation.parse(tag.getString("frameMaterial"));
+      ResourceKey<Level> dimension =
           ResourceKey.create(
               net.minecraft.core.registries.Registries.DIMENSION,
-              ResourceLocation.parse(tag.getString("linkedDimension")));
+              ResourceLocation.parse(tag.getString("dimension")));
+
+      BlockPos spawnPos =
+          new BlockPos(tag.getInt("spawnX"), tag.getInt("spawnY"), tag.getInt("spawnZ"));
+
+      Set<BlockPos> portalBlocks = new HashSet<>();
+      // portalBlocks is a list of IntArrayTag [x, y, z] NOT CompoundTag
+      ListTag blocksList = tag.getList("portalBlocks", Tag.TAG_INT_ARRAY);
+      for (int i = 0; i < blocksList.size(); i++) {
+        int[] coords = blocksList.getIntArray(i);
+        if (coords.length == 3) {
+          portalBlocks.add(new BlockPos(coords[0], coords[1], coords[2]));
+        }
+      }
+
+      CustomPortal portal =
+          new CustomPortal(id, color, frameMaterial, dimension, spawnPos, portalBlocks);
+
+      if (tag.contains("linkedPortalId")) {
+        portal.linkedPortalId = tag.getUUID("linkedPortalId");
+        portal.linkedDimension =
+            ResourceKey.create(
+                net.minecraft.core.registries.Registries.DIMENSION,
+                ResourceLocation.parse(tag.getString("linkedDimension")));
+      }
+
+      // rune counts; backward-compatible with old boolean format
+      portal.hasteCount = tag.contains("hasteCount")
+          ? tag.getInt("hasteCount")
+          : (tag.getBoolean("hasHaste") ? 1 : 0);
+      portal.gateCount = tag.contains("gateCount")
+          ? tag.getInt("gateCount")
+          : (tag.getBoolean("hasGate") ? 1 : 0);
+      portal.infinityCount = tag.contains("infinityCount")
+          ? tag.getInt("infinityCount")
+          : (tag.getBoolean("hasInfinity") ? 1 : 0);
+      portal.weakEnhancerCount = tag.getInt("weakEnhancers");
+      portal.strongEnhancerCount = tag.getInt("strongEnhancers");
+      portal.redstoneDisabled = tag.getBoolean("redstoneDisabled");
+
+      return portal;
+    } catch (Exception e) {
+      return null;
     }
-
-    portal.hasHaste = tag.getBoolean("hasHaste");
-    portal.hasGate = tag.getBoolean("hasGate");
-    portal.hasInfinity = tag.getBoolean("hasInfinity");
-    portal.weakEnhancerCount = tag.getInt("weakEnhancers");
-    portal.strongEnhancerCount = tag.getInt("strongEnhancers");
-    portal.redstoneDisabled = tag.getBoolean("redstoneDisabled");
-
-    return portal;
   }
 }

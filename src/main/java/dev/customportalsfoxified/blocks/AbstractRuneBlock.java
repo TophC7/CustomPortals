@@ -116,7 +116,7 @@ public abstract class AbstractRuneBlock extends FaceAttachedHorizontalDirectiona
 
         // rune removal may invalidate the current link
         // (gate removed from cross-dim pair, or enhancer removed and now out of range)
-        if (portal.isLinked()) {
+        if (portal.isLinked() && portal.getLinkedDimension() != null) {
           net.minecraft.server.MinecraftServer server = level.getServer();
           ServerLevel partnerLevel = server.getLevel(portal.getLinkedDimension());
           if (partnerLevel != null) {

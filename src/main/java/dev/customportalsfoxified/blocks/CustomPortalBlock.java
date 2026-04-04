@@ -421,7 +421,7 @@ public class CustomPortalBlock extends HalfTransparentBlock
       // redstone applied: mark disabled, unlink, let partner find a new match
       portal.setRedstoneDisabled(true);
 
-      if (portal.isLinked()) {
+      if (portal.isLinked() && portal.getLinkedDimension() != null) {
         net.minecraft.server.MinecraftServer server = serverLevel.getServer();
         ServerLevel partnerLevel = server.getLevel(portal.getLinkedDimension());
         CustomPortal partner = null;
