@@ -4,6 +4,7 @@ import dev.customportalsfoxified.config.CPConfig;
 import dev.customportalsfoxified.config.CPConfigScreen;
 import dev.customportalsfoxified.network.SyncPortalColorPayload;
 import dev.customportalsfoxified.particle.ModParticles;
+import dev.customportalsfoxified.portal.PortalDefinitions;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
@@ -21,6 +22,8 @@ public class CustomPortalsFoxified {
 
   public CustomPortalsFoxified(IEventBus modEventBus, ModContainer modContainer) {
     LOGGER.info("Custom Portals Foxified loaded");
+
+    PortalDefinitions.registerBuiltInCatalysts();
 
     ModBlocks.BLOCKS.register(modEventBus);
     ModItems.ITEMS.register(modEventBus);

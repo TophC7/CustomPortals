@@ -43,13 +43,13 @@ public class PortalSavedData extends SavedData {
 
   @Override
   public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
-    registry.save(tag);
+    registry.save(tag, registries);
     return tag;
   }
 
   public static PortalSavedData load(CompoundTag tag, HolderLookup.Provider registries) {
     PortalSavedData data = new PortalSavedData();
-    data.registry.load(tag);
+    data.registry.load(tag, registries);
     return data;
   }
 }

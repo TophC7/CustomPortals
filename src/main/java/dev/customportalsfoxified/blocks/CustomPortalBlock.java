@@ -2,9 +2,9 @@ package dev.customportalsfoxified.blocks;
 
 import dev.customportalsfoxified.CustomPortalsFoxified;
 import dev.customportalsfoxified.ModAttachments;
+import dev.customportalsfoxified.ModItems;
 import dev.customportalsfoxified.config.CPConfig;
 import dev.customportalsfoxified.data.CustomPortal;
-import dev.customportalsfoxified.ModItems;
 import dev.customportalsfoxified.data.PortalSavedData;
 import dev.customportalsfoxified.network.SyncPortalColorPayload;
 import dev.customportalsfoxified.particle.ColoredPortalParticleOptions;
@@ -127,7 +127,7 @@ public class CustomPortalBlock extends HalfTransparentBlock
   public @Nullable DimensionTransition getPortalDestination(
       ServerLevel level, Entity entity, BlockPos pos) {
     CustomPortal portal = PortalSavedData.registry(level).getPortalAt(pos);
-    if (portal == null || !portal.isLinked()) return null;
+    if (portal == null || portal.isDefinitionDisabled() || !portal.isLinked()) return null;
 
     ServerLevel destLevel = level.getServer().getLevel(portal.getLinkedDimension());
     if (destLevel == null) {
@@ -145,6 +145,7 @@ public class CustomPortalBlock extends HalfTransparentBlock
           portal.getLinkedDimension());
       return null;
     }
+    if (linked.isDefinitionDisabled()) return null;
 
     Vec3 destPos = Vec3.atBottomCenterOf(linked.getSpawnPos());
     return new DimensionTransition(
@@ -263,8 +264,13 @@ public class CustomPortalBlock extends HalfTransparentBlock
       PortalSavedData data = PortalSavedData.get(serverLevel);
       CustomPortal portal = data.getRegistry().getPortalAt(pos);
       if (portal != null) {
-        Block.popResource(
-            level, pos, new ItemStack(ModItems.CATALYSTS.get(portal.getColor()).get()));
+        ItemStack storedCatalyst = portal.getStoredCatalystStack();
+        if (!storedCatalyst.isEmpty()) {
+          Block.popResource(level, pos, storedCatalyst);
+        } else if (portal.getDefinitionId() == null) {
+          Block.popResource(
+              level, pos, new ItemStack(ModItems.CATALYSTS.get(portal.getColor()).get()));
+        }
 
         // unregister BEFORE cascade
         // clears spatial index so reentry
@@ -385,11 +391,11 @@ public class CustomPortalBlock extends HalfTransparentBlock
   // LIT STATE | event-driven, no ticker //
 
   /**
-   * Update LIT on all blocks of a portal. LIT = linked, simple as that. Redstone is handled
-   * separately by unlinking/relinking in neighborChanged.
+   * Update LIT on all blocks of a portal. Disabled portals stay dark even if they still have a
+   * stale link recorded while revalidation is in progress.
    */
   public static void updateLitState(ServerLevel level, CustomPortal portal) {
-    boolean shouldBeLit = portal.isLinked();
+    boolean shouldBeLit = portal.isLinked() && !portal.isDefinitionDisabled();
     for (BlockPos pos : portal.getPortalBlocks()) {
       BlockState state = level.getBlockState(pos);
       if (state.getBlock() instanceof CustomPortalBlock && state.getValue(LIT) != shouldBeLit) {

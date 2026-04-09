@@ -1,0 +1,15 @@
+{
+  "color": "brown",
+  "frame": {
+    "tag": "minecraft:leaves",
+    "exclusive": true
+  },
+  "catalyst": {
+    "item": "minecraft:stick",
+    "use": "consume",
+    "amount": 1,
+    "return_on_break": false
+  },
+  "link_mode": "linked_pair",
+  "priority": 10
+}

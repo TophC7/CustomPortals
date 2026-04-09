@@ -8,13 +8,14 @@ import dev.customportalsfoxified.config.CPConfig;
 import dev.customportalsfoxified.data.CustomPortal;
 import dev.customportalsfoxified.data.PortalSavedData;
 import dev.customportalsfoxified.data.RuneType;
+import dev.customportalsfoxified.portal.PortalDefinition;
 import java.util.*;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.item.DyeColor;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import xyz.kwahson.core.config.SafeConfig;
@@ -29,12 +30,19 @@ public class PortalHelper {
    * @param level the server level
    * @param airPos the air block position to start the DFS from
    * @param framePos a known frame block position (to identify the frame material)
-   * @param color portal color from the catalyst
+   * @param definition resolved portal definition
    * @return true if a portal was successfully built
    */
   public static boolean buildPortal(
-      ServerLevel level, BlockPos airPos, BlockPos framePos, DyeColor color) {
-    Block frameMaterial = level.getBlockState(framePos).getBlock();
+      ServerLevel level,
+      BlockPos airPos,
+      BlockPos framePos,
+      PortalDefinition definition,
+      ItemStack storedCatalystStack) {
+    BlockState frameState = level.getBlockState(framePos);
+    if (!definition.matchesFrame(frameState)) return false;
+
+    Block frameMaterial = frameState.getBlock();
 
     // try both axes, pick whichever finds a valid enclosed frame
     Direction.Axis axis = null;
@@ -69,7 +77,7 @@ public class PortalHelper {
         ModBlocks.CUSTOM_PORTAL
             .get()
             .defaultBlockState()
-            .setValue(CustomPortalBlock.COLOR, color)
+            .setValue(CustomPortalBlock.COLOR, definition.color())
             .setValue(CustomPortalBlock.AXIS, axis)
             .setValue(CustomPortalBlock.LIT, false);
 
@@ -82,11 +90,13 @@ public class PortalHelper {
     CustomPortal portal =
         new CustomPortal(
             UUID.randomUUID(),
-            color,
+            definition.id(),
+            definition.color(),
             frameMaterialId,
             level.dimension(),
             spawnPos,
-            portalBlocks);
+            portalBlocks,
+            storedCatalystStack);
 
     // apply detected runes
     for (var entry : runes.entrySet()) {
@@ -100,7 +110,7 @@ public class PortalHelper {
 
     CustomPortalsFoxified.LOGGER.debug(
         "Portal created: color={}, frame={}, pos={}, blocks={}",
-        color.getSerializedName(),
+        definition.color().getSerializedName(),
         frameMaterialId,
         spawnPos,
         portalBlocks.size());

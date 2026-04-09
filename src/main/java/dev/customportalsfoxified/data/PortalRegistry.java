@@ -3,6 +3,7 @@ package dev.customportalsfoxified.data;
 import dev.customportalsfoxified.CustomPortalsFoxified;
 import dev.customportalsfoxified.blocks.CustomPortalBlock;
 import java.util.*;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -17,7 +18,7 @@ public class PortalRegistry {
   private final LinkedHashSet<CustomPortal> portals = new LinkedHashSet<>();
   private final Map<BlockPos, CustomPortal> positionIndex = new HashMap<>();
   private final Map<UUID, CustomPortal> idIndex = new HashMap<>();
-  private final Map<DyeColor, List<CustomPortal>> colorIndex = new EnumMap<>(DyeColor.class);
+  private final Map<PortalLinkKey, List<CustomPortal>> linkIndex = new HashMap<>();
 
   public @Nullable CustomPortal getPortalAt(BlockPos pos) {
     return positionIndex.get(pos);
@@ -31,9 +32,9 @@ public class PortalRegistry {
     return Collections.unmodifiableCollection(portals);
   }
 
-  public List<CustomPortal> getByColor(DyeColor color) {
+  public List<CustomPortal> getByLinkKey(PortalLinkKey linkKey) {
     return Collections.unmodifiableList(
-        colorIndex.getOrDefault(color, Collections.emptyList()));
+        linkIndex.getOrDefault(linkKey, Collections.emptyList()));
   }
 
   public void registerPortal(CustomPortal portal) {
@@ -42,7 +43,7 @@ public class PortalRegistry {
     for (BlockPos pos : portal.getPortalBlocks()) {
       positionIndex.put(pos, portal);
     }
-    colorIndex.computeIfAbsent(portal.getColor(), k -> new ArrayList<>()).add(portal);
+    linkIndex.computeIfAbsent(PortalLinkKey.of(portal), k -> new ArrayList<>()).add(portal);
   }
 
   public void removePortal(CustomPortal portal) {
@@ -51,10 +52,10 @@ public class PortalRegistry {
     for (BlockPos pos : portal.getPortalBlocks()) {
       positionIndex.remove(pos);
     }
-    List<CustomPortal> colorList = colorIndex.get(portal.getColor());
-    if (colorList != null) {
-      colorList.remove(portal);
-      if (colorList.isEmpty()) colorIndex.remove(portal.getColor());
+    List<CustomPortal> linkList = linkIndex.get(PortalLinkKey.of(portal));
+    if (linkList != null) {
+      linkList.remove(portal);
+      if (linkList.isEmpty()) linkIndex.remove(PortalLinkKey.of(portal));
     }
   }
 
@@ -67,8 +68,9 @@ public class PortalRegistry {
     ServerLevel bestLevel = null;
     long bestDistSq = Long.MAX_VALUE;
 
+    PortalLinkKey linkKey = PortalLinkKey.of(portal);
     for (ServerLevel level : server.getAllLevels()) {
-      for (CustomPortal candidate : PortalSavedData.registry(level).getByColor(portal.getColor())) {
+      for (CustomPortal candidate : PortalSavedData.registry(level).getByLinkKey(linkKey)) {
         if (portal.canLinkWith(candidate)) {
           long distSq = portal.calculateDistanceSquared(candidate);
           if (distSq < bestDistSq) {
@@ -117,23 +119,23 @@ public class PortalRegistry {
 
   // SERIALIZATION //
 
-  public void save(CompoundTag tag) {
+  public void save(CompoundTag tag, HolderLookup.Provider registries) {
     ListTag list = new ListTag();
     for (CustomPortal portal : portals) {
-      list.add(portal.save());
+      list.add(portal.save(registries));
     }
     tag.put("portals", list);
   }
 
-  public void load(CompoundTag tag) {
+  public void load(CompoundTag tag, HolderLookup.Provider registries) {
     portals.clear();
     positionIndex.clear();
     idIndex.clear();
-    colorIndex.clear();
+    linkIndex.clear();
     if (tag.contains("portals")) {
       ListTag list = tag.getList("portals", Tag.TAG_COMPOUND);
       for (int i = 0; i < list.size(); i++) {
-        CustomPortal portal = CustomPortal.load(list.getCompound(i));
+        CustomPortal portal = CustomPortal.load(list.getCompound(i), registries);
         if (portal != null) {
           registerPortal(portal);
         } else {

@@ -13,6 +13,7 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.DyeColor;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.Nullable;
 import xyz.kwahson.core.config.SafeConfig;
@@ -20,11 +21,13 @@ import xyz.kwahson.core.config.SafeConfig;
 public class CustomPortal {
 
   private final UUID id;
+  private final @Nullable ResourceLocation definitionId;
   private final DyeColor color;
   private final ResourceLocation frameMaterial;
   private final ResourceKey<Level> dimension;
   private final BlockPos spawnPos;
   private final Set<BlockPos> portalBlocks;
+  private final ItemStack storedCatalystStack;
   // linking
   private @Nullable UUID linkedPortalId;
   private @Nullable ResourceKey<Level> linkedDimension;
@@ -40,6 +43,26 @@ public class CustomPortal {
   private int strongEnhancerCount;
 
   private boolean redstoneDisabled;
+  private boolean definitionDisabled;
+
+  public CustomPortal(
+      UUID id,
+      @Nullable ResourceLocation definitionId,
+      DyeColor color,
+      ResourceLocation frameMaterial,
+      ResourceKey<Level> dimension,
+      BlockPos spawnPos,
+      Set<BlockPos> portalBlocks,
+      ItemStack storedCatalystStack) {
+    this.id = id;
+    this.definitionId = definitionId;
+    this.color = color;
+    this.frameMaterial = frameMaterial;
+    this.dimension = dimension;
+    this.spawnPos = spawnPos;
+    this.portalBlocks = new HashSet<>(portalBlocks);
+    this.storedCatalystStack = storedCatalystStack.copy();
+  }
 
   public CustomPortal(
       UUID id,
@@ -48,12 +71,18 @@ public class CustomPortal {
       ResourceKey<Level> dimension,
       BlockPos spawnPos,
       Set<BlockPos> portalBlocks) {
-    this.id = id;
-    this.color = color;
-    this.frameMaterial = frameMaterial;
-    this.dimension = dimension;
-    this.spawnPos = spawnPos;
-    this.portalBlocks = new HashSet<>(portalBlocks);
+    this(id, null, color, frameMaterial, dimension, spawnPos, portalBlocks, ItemStack.EMPTY);
+  }
+
+  public CustomPortal(
+      UUID id,
+      @Nullable ResourceLocation definitionId,
+      DyeColor color,
+      ResourceLocation frameMaterial,
+      ResourceKey<Level> dimension,
+      BlockPos spawnPos,
+      Set<BlockPos> portalBlocks) {
+    this(id, definitionId, color, frameMaterial, dimension, spawnPos, portalBlocks, ItemStack.EMPTY);
   }
 
   // GETTERS //
@@ -64,6 +93,10 @@ public class CustomPortal {
 
   public DyeColor getColor() {
     return color;
+  }
+
+  public @Nullable ResourceLocation getDefinitionId() {
+    return definitionId;
   }
 
   public ResourceLocation getFrameMaterial() {
@@ -80,6 +113,10 @@ public class CustomPortal {
 
   public Set<BlockPos> getPortalBlocks() {
     return Collections.unmodifiableSet(portalBlocks);
+  }
+
+  public ItemStack getStoredCatalystStack() {
+    return storedCatalystStack.copy();
   }
 
   public @Nullable UUID getLinkedPortalId() {
@@ -100,6 +137,14 @@ public class CustomPortal {
 
   public void setRedstoneDisabled(boolean disabled) {
     this.redstoneDisabled = disabled;
+  }
+
+  public boolean isDefinitionDisabled() {
+    return definitionDisabled;
+  }
+
+  public void setDefinitionDisabled(boolean disabled) {
+    this.definitionDisabled = disabled;
   }
 
   public boolean hasHaste() {
@@ -138,6 +183,7 @@ public class CustomPortal {
   public boolean canLinkWith(CustomPortal other) {
     if (this.isLinked() || other.isLinked()) return false;
     if (this.redstoneDisabled || other.redstoneDisabled) return false;
+    if (this.definitionDisabled || other.definitionDisabled) return false;
     return isCompatibleWith(other);
   }
 
@@ -148,8 +194,8 @@ public class CustomPortal {
    */
   public boolean isCompatibleWith(CustomPortal other) {
     if (this.id.equals(other.id)) return false;
-    if (this.color != other.color) return false;
-    if (!this.frameMaterial.equals(other.frameMaterial)) return false;
+    if (this.definitionDisabled || other.definitionDisabled) return false;
+    if (!hasMatchingPortalType(other)) return false;
 
     // cross-dimension requires gate rune on at least one side
     boolean crossDimension = !this.dimension.equals(other.dimension);
@@ -159,6 +205,15 @@ public class CustomPortal {
     }
 
     return isInRange(other);
+  }
+
+  private boolean hasMatchingPortalType(CustomPortal other) {
+    if (this.definitionId != null || other.definitionId != null) {
+      return this.definitionId != null && this.definitionId.equals(other.definitionId);
+    }
+
+    if (this.color != other.color) return false;
+    return this.frameMaterial.equals(other.frameMaterial);
   }
 
   private boolean isInRange(CustomPortal other) {
@@ -236,9 +291,12 @@ public class CustomPortal {
 
   // SERIALIZATION //
 
-  public CompoundTag save() {
+  public CompoundTag save(net.minecraft.core.HolderLookup.Provider registries) {
     CompoundTag tag = new CompoundTag();
     tag.putUUID("id", id);
+    if (definitionId != null) {
+      tag.putString("definitionId", definitionId.toString());
+    }
     tag.putInt("color", color.getId());
     tag.putString("frameMaterial", frameMaterial.toString());
     tag.putString("dimension", dimension.location().toString());
@@ -253,6 +311,10 @@ public class CustomPortal {
     }
     tag.put("portalBlocks", blocksList);
 
+    if (!storedCatalystStack.isEmpty()) {
+      tag.put("storedCatalyst", storedCatalystStack.saveOptional(registries));
+    }
+
     if (linkedPortalId != null) {
       tag.putUUID("linkedPortalId", linkedPortalId);
       tag.putString("linkedDimension", linkedDimension.location().toString());
@@ -264,6 +326,7 @@ public class CustomPortal {
     tag.putInt("weakEnhancers", weakEnhancerCount);
     tag.putInt("strongEnhancers", strongEnhancerCount);
     tag.putBoolean("redstoneDisabled", redstoneDisabled);
+    tag.putBoolean("definitionDisabled", definitionDisabled);
 
     return tag;
   }
@@ -272,9 +335,14 @@ public class CustomPortal {
    * Deserialize a portal from NBT. Returns null if the data is malformed
    * so callers can skip the entry instead of crashing.
    */
-  public static @Nullable CustomPortal load(CompoundTag tag) {
+  public static @Nullable CustomPortal load(
+      CompoundTag tag, net.minecraft.core.HolderLookup.Provider registries) {
     try {
       UUID id = tag.getUUID("id");
+      ResourceLocation definitionId =
+          tag.contains("definitionId")
+              ? ResourceLocation.parse(tag.getString("definitionId"))
+              : null;
       DyeColor color = DyeColor.byId(tag.getInt("color"));
       ResourceLocation frameMaterial = ResourceLocation.parse(tag.getString("frameMaterial"));
       ResourceKey<Level> dimension =
@@ -296,7 +364,15 @@ public class CustomPortal {
       }
 
       CustomPortal portal =
-          new CustomPortal(id, color, frameMaterial, dimension, spawnPos, portalBlocks);
+          new CustomPortal(
+              id,
+              definitionId,
+              color,
+              frameMaterial,
+              dimension,
+              spawnPos,
+              portalBlocks,
+              ItemStack.parseOptional(registries, tag.getCompound("storedCatalyst")));
 
       if (tag.contains("linkedPortalId")) {
         portal.linkedPortalId = tag.getUUID("linkedPortalId");
@@ -319,6 +395,7 @@ public class CustomPortal {
       portal.weakEnhancerCount = tag.getInt("weakEnhancers");
       portal.strongEnhancerCount = tag.getInt("strongEnhancers");
       portal.redstoneDisabled = tag.getBoolean("redstoneDisabled");
+      portal.definitionDisabled = tag.getBoolean("definitionDisabled");
 
       return portal;
     } catch (Exception e) {
