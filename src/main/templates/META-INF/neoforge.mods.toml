@@ -12,17 +12,19 @@ Build portals out of any block. Create matching frames, light them with a
 colored catalyst, and travel between linked portals. Enhance portals with
 runes for haste, extended range, and cross-dimension travel.
 '''
+author = "Kwahson"
+displayURL = "https://github.com/tophc7/CustomPortals"
 
-[[dependencies.${mod_id}]]
-    modId = "neoforge"
-    type = "required"
-    versionRange = "[21.1.219,)"
-    ordering = "NONE"
-    side = "BOTH"
+[[dependencies."${mod_id}"]]
+modId = "neoforge"
+type = "required"
+versionRange = "[21.1.219,)"
+ordering = "NONE"
+side = "BOTH"
 
-[[dependencies.${mod_id}]]
-    modId = "minecraft"
-    type = "required"
-    versionRange = "${minecraft_version_range}"
-    ordering = "NONE"
-    side = "BOTH"
+[[dependencies."${mod_id}"]]
+modId = "minecraft"
+type = "required"
+versionRange = "${minecraft_version_range}"
+ordering = "NONE"
+side = "BOTH"
