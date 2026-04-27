@@ -13,6 +13,10 @@
 - [ ] Search for an existing counterpart portal near the transformed destination
 - [ ] Safe counterpart portal placement when no existing destination portal is found
 - [ ] Clear failure behavior when a safe counterpart portal cannot be found or created
+- [ ] Counterpart portal generation still has spaces/terrain layouts where it cannot reliably make a destination portal; revisit with behavior closer to vanilla Nether portal placement
+- [ ] Counterpart placement can choose a portal too far from the expected return point; teleporting back may create/find a different portal instead of returning to the original one
+- [ ] Datapack counterpart portals can currently form invalid many-to-one links; two source portals may both target one counterpart, while the counterpart returns to only one specific source
+- [ ] Nearby source portals can both send players to the same Nether counterpart, causing odd asymmetric return behavior; linking should stay one-to-one or otherwise be deterministic and reversible
 
 ## Backlog (later)
 

@@ -1,9 +1,16 @@
 package dev.customportalsfoxified.config;
 
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.network.chat.Component;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
-import xyz.kwahson.core.config.KwahsConfigScreen;
+import net.neoforged.neoforge.common.ModConfigSpec;
+import xyz.kwahson.core.config.ConfigBinding;
+import xyz.kwahson.core.ui.binding.ValueBinding;
+import xyz.kwahson.core.ui.layout.FormLayout;
+import xyz.kwahson.core.ui.screen.TabbedScreen;
+import xyz.kwahson.core.ui.widget.SliderField;
+import xyz.kwahson.core.ui.widget.ToggleField;
 
 public final class CPConfigScreen {
 
@@ -17,32 +24,59 @@ public final class CPConfigScreen {
   }
 
   public static Screen create(Screen parent) {
-    return KwahsConfigScreen.builder("Custom Portals Foxified", parent,
-            CPConfig.CLIENT_SPEC, CPConfig.COMMON_SPEC)
-        .tab("Settings", tab -> {
-          tab.sections("Sound", "Redstone");
-          tab.left(tab.toggle("Mute Sounds", CPConfig.MUTE_SOUNDS));
-          tab.right(tab.toggle("Redstone Disables", CPConfig.REDSTONE_DISABLES));
-          tab.nextRow();
-
-          tab.sections("Portal Limits", "Linking Range");
-          tab.left(tab.intSlider("Max Portal Size", " blocks", 4, 900, 1,
-              CPConfig.MAX_PORTAL_SIZE));
-          tab.right(tab.intField("Base Range", 1, Integer.MAX_VALUE,
-              CPConfig.BASE_RANGE));
-          tab.nextRow();
-
-          tab.left(tab.intSlider("Min Portal Size", " blocks", 1, 900, 1,
-              CPConfig.MIN_PORTAL_SIZE));
-          tab.right(tab.intField("Enhanced Range", 1, Integer.MAX_VALUE,
-              CPConfig.ENHANCED_RANGE));
-          tab.nextRow();
-
-          tab.left(tab.toggle("Cross-Dimension", CPConfig.ALLOW_CROSS_DIMENSION));
-          tab.right(tab.intField("Strong Range", 1, Integer.MAX_VALUE,
-              CPConfig.STRONG_RANGE));
-          tab.nextRow();
-        })
+    return TabbedScreen.builder("Custom Portals Foxified", parent)
+        .tab("Settings", CPConfigScreen::buildSettingsTab)
         .build();
+  }
+
+  private static void buildSettingsTab(FormLayout tab) {
+    tab.sections("Sound", "Redstone");
+    tab.left(ToggleField.of(clientBool("Mute Sounds", CPConfig.MUTE_SOUNDS, false)));
+    tab.right(ToggleField.of(commonBool("Redstone Disables", CPConfig.REDSTONE_DISABLES, true)));
+    tab.nextRow();
+
+    tab.sections("Portal Limits", "Linking Range");
+    tab.left(SliderField.intRange(
+        commonInt("Max Portal Size", CPConfig.MAX_PORTAL_SIZE, 64),
+        4, 900, 1, " blocks"));
+    tab.right(SliderField.intRange(
+        commonInt("Base Range", CPConfig.BASE_RANGE, 100),
+        1, Integer.MAX_VALUE, 1, ""));
+    tab.nextRow();
+
+    tab.left(SliderField.intRange(
+        commonInt("Min Portal Size", CPConfig.MIN_PORTAL_SIZE, 1),
+        1, 900, 1, " blocks"));
+    tab.right(SliderField.intRange(
+        commonInt("Enhanced Range", CPConfig.ENHANCED_RANGE, 1000),
+        1, Integer.MAX_VALUE, 1, ""));
+    tab.nextRow();
+
+    tab.left(ToggleField.of(commonBool(
+        "Cross-Dimension", CPConfig.ALLOW_CROSS_DIMENSION, true)));
+    tab.right(SliderField.intRange(
+        commonInt("Strong Range", CPConfig.STRONG_RANGE, 10000),
+        1, Integer.MAX_VALUE, 1, ""));
+  }
+
+  private static ValueBinding<Boolean> clientBool(
+      String label, ModConfigSpec.BooleanValue value, boolean fallback) {
+    return ConfigBinding.saving(
+        ConfigBinding.bool(Component.literal(label), value, fallback),
+        CPConfig.CLIENT_SPEC);
+  }
+
+  private static ValueBinding<Boolean> commonBool(
+      String label, ModConfigSpec.BooleanValue value, boolean fallback) {
+    return ConfigBinding.saving(
+        ConfigBinding.bool(Component.literal(label), value, fallback),
+        CPConfig.COMMON_SPEC);
+  }
+
+  private static ValueBinding<Integer> commonInt(
+      String label, ModConfigSpec.IntValue value, int fallback) {
+    return ConfigBinding.saving(
+        ConfigBinding.intValue(Component.literal(label), value, fallback),
+        CPConfig.COMMON_SPEC);
   }
 }

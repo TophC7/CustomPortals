@@ -1,0 +1,25 @@
+{
+  "color": "red",
+  "frame": {
+    "block": "minecraft:crying_obsidian",
+    "exclusive": true
+  },
+  "catalyst": {
+    "item": "minecraft:flint_and_steel",
+    "use": "damage",
+    "amount": 1,
+    "return_on_break": false
+  },
+  "link_mode": "scaled_dimension_counterpart",
+  "destination": {
+    "dimension_a": "minecraft:overworld",
+    "dimension_b": "minecraft:the_nether",
+    "coordinate_scale": 8.0,
+    "search_radius": 16,
+    "vertical_search_radius": 8,
+    "max_autogen_portal_width": 5,
+    "max_autogen_portal_height": 5,
+    "max_autogen_portal_area": 25
+  },
+  "priority": 20
+}

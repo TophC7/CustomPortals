@@ -177,8 +177,7 @@ public class PortalEventHandler {
         if (portal.isLinked() || portal.isDefinitionDisabled() || portal.isRedstoneDisabled()) {
           continue;
         }
-
-        if (data.getRegistry().tryLinkAcrossAll(portal, server) != null) {
+        if (PortalLinkHelper.tryResolveLink(level, portal) != null) {
           relinkedCount++;
           data.setDirty();
         } else {

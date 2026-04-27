@@ -2,6 +2,8 @@ package dev.customportalsfoxified.data;
 
 import dev.customportalsfoxified.CustomPortalsFoxified;
 import dev.customportalsfoxified.blocks.CustomPortalBlock;
+import dev.customportalsfoxified.portal.PortalDefinitions;
+import dev.customportalsfoxified.util.PortalLinkHelper;
 import java.util.*;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.BlockPos;
@@ -64,6 +66,10 @@ public class PortalRegistry {
    * Returns the linked partner if successful.
    */
   public @Nullable CustomPortal tryLinkAcrossAll(CustomPortal portal, MinecraftServer server) {
+    if (PortalDefinitions.usesCounterpartRoute(portal.getDefinitionId())) {
+      return null;
+    }
+
     CustomPortal bestCandidate = null;
     ServerLevel bestLevel = null;
     long bestDistSq = Long.MAX_VALUE;
@@ -99,17 +105,23 @@ public class PortalRegistry {
     return bestCandidate;
   }
 
-  /** Remove a portal and try to relink its former partner. */
+  /**
+   * Remove a portal and try to relink its former partner. For many-to-one counterpart
+   * convergence, only clears the partner's back-link if it points to this portal;
+   * otherwise the partner's connection to its primary source is preserved.
+   */
   public void removeAndRelink(CustomPortal portal, MinecraftServer server) {
     if (portal.isLinked()) {
       CustomPortal partner = PortalSavedData.resolveLinkedPartner(portal, server);
-      if (partner != null) {
+      if (partner != null && portal.getId().equals(partner.getLinkedPortalId())) {
         partner.unlink();
         ServerLevel partnerLevel = server.getLevel(partner.getDimension());
         if (partnerLevel != null) {
           CustomPortalBlock.updateLitState(partnerLevel, partner);
           PortalSavedData partnerData = PortalSavedData.get(partnerLevel);
-          partnerData.getRegistry().tryLinkAcrossAll(partner, server);
+          if (!PortalDefinitions.usesCounterpartRoute(partner.getDefinitionId())) {
+            PortalLinkHelper.tryResolveLink(partnerLevel, partner);
+          }
           partnerData.setDirty();
         }
       }

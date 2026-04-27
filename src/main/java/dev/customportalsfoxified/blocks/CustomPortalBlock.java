@@ -8,9 +8,13 @@ import dev.customportalsfoxified.data.CustomPortal;
 import dev.customportalsfoxified.data.PortalSavedData;
 import dev.customportalsfoxified.network.SyncPortalColorPayload;
 import dev.customportalsfoxified.particle.ColoredPortalParticleOptions;
+import dev.customportalsfoxified.portal.PortalDefinition;
+import dev.customportalsfoxified.portal.PortalDefinitions;
+import dev.customportalsfoxified.util.PortalLinkHelper;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.Map;
+import net.minecraft.BlockUtil;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -18,8 +22,10 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.animal.Sheep;
 import net.minecraft.world.entity.player.Player;
@@ -44,6 +50,7 @@ import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.level.portal.DimensionTransition;
+import net.minecraft.world.level.portal.PortalShape;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
@@ -127,7 +134,14 @@ public class CustomPortalBlock extends HalfTransparentBlock
   public @Nullable DimensionTransition getPortalDestination(
       ServerLevel level, Entity entity, BlockPos pos) {
     CustomPortal portal = PortalSavedData.registry(level).getPortalAt(pos);
-    if (portal == null || portal.isDefinitionDisabled() || !portal.isLinked()) return null;
+    if (portal == null || portal.isDefinitionDisabled()) return null;
+
+    PortalDefinition definition =
+        portal.getDefinitionId() != null ? PortalDefinitions.get(portal.getDefinitionId()) : null;
+    if (definition != null && definition.usesCounterpartRoute() && !portal.isLinked()) {
+      PortalLinkHelper.tryResolveLink(level, portal);
+    }
+    if (!portal.isLinked()) return null;
 
     ServerLevel destLevel = level.getServer().getLevel(portal.getLinkedDimension());
     if (destLevel == null) {
@@ -147,14 +161,11 @@ public class CustomPortalBlock extends HalfTransparentBlock
     }
     if (linked.isDefinitionDisabled()) return null;
 
-    Vec3 destPos = Vec3.atBottomCenterOf(linked.getSpawnPos());
-    return new DimensionTransition(
-        destLevel,
-        destPos,
-        Vec3.ZERO,
-        entity.getYRot(),
-        entity.getXRot(),
-        DimensionTransition.PLAY_PORTAL_SOUND);
+    // Vanilla-style safe exit positioning: compute source/dest portal rectangles,
+    // map the entity's relative position from source into destination, then apply
+    // PortalShape.findCollisionFreePosition for collision-safe placement.
+    // Mirrors NetherPortalBlock.getDimensionTransitionFromExit / createDimensionTransition.
+    return createSafeTransition(destLevel, entity, portal, linked);
   }
 
   @Override
@@ -181,6 +192,137 @@ public class CustomPortalBlock extends HalfTransparentBlock
                       : GameRules.RULE_PLAYERS_NETHER_PORTAL_DEFAULT_DELAY));
     }
     return 0;
+  }
+
+  // SAFE EXIT POSITIONING //
+
+  /**
+   * Build a {@link BlockUtil.FoundRectangle} from a portal's block set.
+   *
+   * <p>For vertical portals (axis X/Z), {@code axis1Size} is the width along the
+   * portal's horizontal axis and {@code axis2Size} is the height along Y — matching
+   * vanilla's convention. For horizontal portals (axis Y), {@code axis1Size} is
+   * width along X and {@code axis2Size} is depth along Z.
+   */
+  private static BlockUtil.FoundRectangle computePortalRectangle(CustomPortal portal) {
+    int minX = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE;
+    int minY = Integer.MAX_VALUE, maxY = Integer.MIN_VALUE;
+    int minZ = Integer.MAX_VALUE, maxZ = Integer.MIN_VALUE;
+    for (BlockPos p : portal.getPortalBlocks()) {
+      minX = Math.min(minX, p.getX());
+      maxX = Math.max(maxX, p.getX());
+      minY = Math.min(minY, p.getY());
+      maxY = Math.max(maxY, p.getY());
+      minZ = Math.min(minZ, p.getZ());
+      maxZ = Math.max(maxZ, p.getZ());
+    }
+    return switch (portal.getAxis()) {
+      case X -> new BlockUtil.FoundRectangle(
+          new BlockPos(minX, minY, minZ), maxX - minX + 1, maxY - minY + 1);
+      case Z -> new BlockUtil.FoundRectangle(
+          new BlockPos(minX, minY, minZ), maxZ - minZ + 1, maxY - minY + 1);
+      case Y -> new BlockUtil.FoundRectangle(
+          new BlockPos(minX, minY, minZ), maxX - minX + 1, maxZ - minZ + 1);
+    };
+  }
+
+  /**
+   * Mirrors vanilla {@code NetherPortalBlock.getDimensionTransitionFromExit} and
+   * {@code createDimensionTransition}: computes the entity's relative position within
+   * the source portal, maps it into the destination portal accounting for entity
+   * dimensions and axis rotation, then calls
+   * {@link PortalShape#findCollisionFreePosition} for collision-safe placement.
+   *
+   * <p>Vertical→vertical transitions use the exact vanilla formulas. Horizontal→horizontal
+   * transitions extend the logic to the X-Z plane. Mixed orientations fall back to
+   * center-based placement with collision safety (no vanilla equivalent exists).
+   */
+  private static DimensionTransition createSafeTransition(
+      ServerLevel destLevel, Entity entity, CustomPortal source, CustomPortal dest) {
+    BlockUtil.FoundRectangle sourceRect = computePortalRectangle(source);
+    BlockUtil.FoundRectangle destRect = computePortalRectangle(dest);
+    Direction.Axis sourceAxis = source.getAxis();
+    Direction.Axis destAxis = dest.getAxis();
+    EntityDimensions dims = entity.getDimensions(entity.getPose());
+
+    Vec3 destPos;
+    int rotationDeg = 0;
+    Vec3 movement = entity.getDeltaMovement();
+
+    if (sourceAxis != Direction.Axis.Y && destAxis != Direction.Axis.Y) {
+      // Both vertical: use vanilla logic exactly.
+      Vec3 relativePos = entity.getRelativePortalPosition(sourceAxis, sourceRect);
+
+      // Rotation when source and dest horizontal axes differ (vanilla: 90 degree turn)
+      if (sourceAxis != destAxis) {
+        rotationDeg = 90;
+        movement = new Vec3(movement.z, movement.y, -movement.x);
+      }
+
+      double d2 = dims.width() / 2.0
+          + ((double) destRect.axis1Size - dims.width()) * relativePos.x();
+      double d3 = ((double) destRect.axis2Size - dims.height()) * relativePos.y();
+      double d4 = 0.5 + relativePos.z();
+      boolean flag = destAxis == Direction.Axis.X;
+      destPos = new Vec3(
+          destRect.minCorner.getX() + (flag ? d2 : d4),
+          destRect.minCorner.getY() + d3,
+          destRect.minCorner.getZ() + (flag ? d4 : d2));
+    } else if (sourceAxis == Direction.Axis.Y && destAxis == Direction.Axis.Y) {
+      // Both horizontal: map relative X-Z position, place above portal plane.
+      Vec3 relativePos = getHorizontalRelativePos(entity, sourceRect, dims);
+      double d2 = dims.width() / 2.0
+          + ((double) destRect.axis1Size - dims.width()) * relativePos.x();
+      double d3 = dims.width() / 2.0
+          + ((double) destRect.axis2Size - dims.width()) * relativePos.y();
+      destPos = new Vec3(
+          destRect.minCorner.getX() + d2,
+          destRect.minCorner.getY() + 1.0,
+          destRect.minCorner.getZ() + d3);
+    } else {
+      // Mixed vertical/horizontal: no vanilla equivalent. Place at destination
+      // spawn center with appropriate vertical offset; collision safety below
+      // handles the rest.
+      destPos = Vec3.atBottomCenterOf(dest.getSpawnPos());
+      if (destAxis == Direction.Axis.Y) {
+        destPos = new Vec3(destPos.x, destRect.minCorner.getY() + 1.0, destPos.z);
+      }
+    }
+
+    Vec3 safe = PortalShape.findCollisionFreePosition(destPos, destLevel, entity, dims);
+    // Vanilla uses PLAY_PORTAL_SOUND.then(PLACE_PORTAL_TICKET) to keep the
+    // destination chunk loaded during teleportation (important for non-player entities).
+    return new DimensionTransition(
+        destLevel, safe, movement,
+        entity.getYRot() + rotationDeg, entity.getXRot(),
+        DimensionTransition.PLAY_PORTAL_SOUND.then(DimensionTransition.PLACE_PORTAL_TICKET));
+  }
+
+  /**
+   * Relative position for horizontal (Y-axis) portals where vanilla's
+   * {@link PortalShape#getRelativePosition} doesn't apply (it assumes a vertical
+   * portal with height along Y). Returns (relX along X, relZ along Z, vertical
+   * offset from portal plane).
+   */
+  private static Vec3 getHorizontalRelativePos(
+      Entity entity, BlockUtil.FoundRectangle rect, EntityDimensions dims) {
+    Vec3 pos = entity.position();
+    double d0 = rect.axis1Size - dims.width();
+    double relX = d0 > 0.0
+        ? Mth.clamp(
+            Mth.inverseLerp(
+                pos.x - (rect.minCorner.getX() + dims.width() / 2.0), 0.0, d0),
+            0.0, 1.0)
+        : 0.5;
+    double d1 = rect.axis2Size - dims.width();
+    double relZ = d1 > 0.0
+        ? Mth.clamp(
+            Mth.inverseLerp(
+                pos.z - (rect.minCorner.getZ() + dims.width() / 2.0), 0.0, d1),
+            0.0, 1.0)
+        : 0.5;
+    double relY = pos.y - (rect.minCorner.getY() + 0.5);
+    return new Vec3(relX, relZ, relY);
   }
 
   // ENTITY INTERACTION //
@@ -395,7 +537,7 @@ public class CustomPortalBlock extends HalfTransparentBlock
    * stale link recorded while revalidation is in progress.
    */
   public static void updateLitState(ServerLevel level, CustomPortal portal) {
-    boolean shouldBeLit = portal.isLinked() && !portal.isDefinitionDisabled();
+    boolean shouldBeLit = PortalDefinitions.shouldPortalStayLit(portal);
     for (BlockPos pos : portal.getPortalBlocks()) {
       BlockState state = level.getBlockState(pos);
       if (state.getBlock() instanceof CustomPortalBlock && state.getValue(LIT) != shouldBeLit) {
@@ -431,7 +573,9 @@ public class CustomPortalBlock extends HalfTransparentBlock
           if (partnerLevel != null) {
             updateLitState(partnerLevel, partner);
             PortalSavedData partnerData = PortalSavedData.get(partnerLevel);
-            partnerData.getRegistry().tryLinkAcrossAll(partner, server);
+            if (!PortalDefinitions.usesCounterpartRoute(partner.getDefinitionId())) {
+              PortalLinkHelper.tryResolveLink(partnerLevel, partner);
+            }
             partnerData.setDirty();
           }
         } else {
@@ -444,8 +588,7 @@ public class CustomPortalBlock extends HalfTransparentBlock
     } else if (!hasSignal && portal.isRedstoneDisabled()) {
       // redstone removed: clear disabled flag, try to relink
       portal.setRedstoneDisabled(false);
-      net.minecraft.server.MinecraftServer server = serverLevel.getServer();
-      data.getRegistry().tryLinkAcrossAll(portal, server);
+      PortalLinkHelper.tryResolveLink(serverLevel, portal);
       updateLitState(serverLevel, portal);
       data.setDirty();
     }

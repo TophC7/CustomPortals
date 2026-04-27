@@ -1,0 +1,32 @@
+{
+	"version": 1,
+	"tasks": [
+		{
+			"id": "runClient",
+			"label": "Run Client",
+			"group": "Run",
+			"command": "gradle createLaunchScripts && bash build/moddev/runClient.sh",
+			"clearOnRerun": false,
+			"singleton": true,
+			"icon": "gamepad-directional"
+		},
+		{
+			"id": "runServer",
+			"label": "Run Server",
+			"group": "Run",
+			"command": "gradle createLaunchScripts && bash build/moddev/runServer.sh",
+			"clearOnRerun": false,
+			"singleton": true,
+			"icon": "gamepad-directional"
+		},
+		{
+			"id": "build",
+			"label": "Build",
+			"group": "Build",
+			"command": "nix run",
+			"clearOnRerun": false,
+			"singleton": false,
+			"icon": "pickaxe"
+		}
+	]
+}

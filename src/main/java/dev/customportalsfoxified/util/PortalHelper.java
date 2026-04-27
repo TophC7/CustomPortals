@@ -95,7 +95,9 @@ public class PortalHelper {
             frameMaterialId,
             level.dimension(),
             spawnPos,
+            axis,
             portalBlocks,
+            frameBlocks,
             storedCatalystStack);
 
     // apply detected runes
@@ -115,9 +117,7 @@ public class PortalHelper {
         spawnPos,
         portalBlocks.size());
 
-    // tryLinkAcrossAll pushes LIT=true on both portals if a match is found;
-    // blocks start LIT=false so no correction needed on failure
-    CustomPortal linked = data.getRegistry().tryLinkAcrossAll(portal, level.getServer());
+    CustomPortal linked = PortalLinkHelper.tryResolveLink(level, portal);
     if (linked != null) {
       CustomPortalsFoxified.LOGGER.debug(
           "Linked to portal at {} in {}", linked.getSpawnPos(), linked.getDimension());

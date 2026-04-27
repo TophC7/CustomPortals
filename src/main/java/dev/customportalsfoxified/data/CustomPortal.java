@@ -1,11 +1,13 @@
 package dev.customportalsfoxified.data;
 
 import dev.customportalsfoxified.config.CPConfig;
+import dev.customportalsfoxified.portal.PortalDefinitions;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtUtils;
@@ -26,7 +28,9 @@ public class CustomPortal {
   private final ResourceLocation frameMaterial;
   private final ResourceKey<Level> dimension;
   private final BlockPos spawnPos;
+  private final Direction.Axis axis;
   private final Set<BlockPos> portalBlocks;
+  private final Set<BlockPos> frameBlocks;
   private final ItemStack storedCatalystStack;
   // linking
   private @Nullable UUID linkedPortalId;
@@ -52,7 +56,9 @@ public class CustomPortal {
       ResourceLocation frameMaterial,
       ResourceKey<Level> dimension,
       BlockPos spawnPos,
+      Direction.Axis axis,
       Set<BlockPos> portalBlocks,
+      Set<BlockPos> frameBlocks,
       ItemStack storedCatalystStack) {
     this.id = id;
     this.definitionId = definitionId;
@@ -60,7 +66,9 @@ public class CustomPortal {
     this.frameMaterial = frameMaterial;
     this.dimension = dimension;
     this.spawnPos = spawnPos;
+    this.axis = axis;
     this.portalBlocks = new HashSet<>(portalBlocks);
+    this.frameBlocks = new HashSet<>(frameBlocks);
     this.storedCatalystStack = storedCatalystStack.copy();
   }
 
@@ -71,7 +79,17 @@ public class CustomPortal {
       ResourceKey<Level> dimension,
       BlockPos spawnPos,
       Set<BlockPos> portalBlocks) {
-    this(id, null, color, frameMaterial, dimension, spawnPos, portalBlocks, ItemStack.EMPTY);
+    this(
+        id,
+        null,
+        color,
+        frameMaterial,
+        dimension,
+        spawnPos,
+        Direction.Axis.X,
+        portalBlocks,
+        Set.of(),
+        ItemStack.EMPTY);
   }
 
   public CustomPortal(
@@ -82,7 +100,17 @@ public class CustomPortal {
       ResourceKey<Level> dimension,
       BlockPos spawnPos,
       Set<BlockPos> portalBlocks) {
-    this(id, definitionId, color, frameMaterial, dimension, spawnPos, portalBlocks, ItemStack.EMPTY);
+    this(
+        id,
+        definitionId,
+        color,
+        frameMaterial,
+        dimension,
+        spawnPos,
+        Direction.Axis.X,
+        portalBlocks,
+        Set.of(),
+        ItemStack.EMPTY);
   }
 
   // GETTERS //
@@ -111,8 +139,16 @@ public class CustomPortal {
     return spawnPos;
   }
 
+  public Direction.Axis getAxis() {
+    return axis;
+  }
+
   public Set<BlockPos> getPortalBlocks() {
     return Collections.unmodifiableSet(portalBlocks);
+  }
+
+  public Set<BlockPos> getFrameBlocks() {
+    return Collections.unmodifiableSet(frameBlocks);
   }
 
   public ItemStack getStoredCatalystStack() {
@@ -168,10 +204,28 @@ public class CustomPortal {
     other.linkedDimension = this.dimension;
   }
 
-  /** Bilateral: clears both this portal's and its partner's link fields. */
+  /**
+   * Unilateral forward link: sets this portal's destination to the target without
+   * modifying the target's back-link. Used for many-to-one counterpart convergence
+   * where multiple source portals share a single destination portal, mirroring
+   * vanilla nether portal behavior.
+   */
+  public void linkTo(CustomPortal target) {
+    this.linkedPortalId = target.id;
+    this.linkedDimension = target.dimension;
+  }
+
+  /**
+   * Clears this portal's link fields. Also clears the partner's link fields only if
+   * the partner's back-link points to this portal (bilateral). Safe for many-to-one
+   * counterpart convergence: unlinking a secondary source won't disrupt the
+   * counterpart's existing bilateral connection to its primary source.
+   */
   public void unlinkFrom(CustomPortal partner) {
+    if (this.id.equals(partner.linkedPortalId)) {
+      partner.unlink();
+    }
     this.unlink();
-    partner.unlink();
   }
 
   /** Unilateral: clears only this portal's link fields. */
@@ -196,6 +250,10 @@ public class CustomPortal {
     if (this.id.equals(other.id)) return false;
     if (this.definitionDisabled || other.definitionDisabled) return false;
     if (!hasMatchingPortalType(other)) return false;
+
+    if (PortalDefinitions.areDefinitionsCompatibleForLink(this, other)) {
+      return true;
+    }
 
     // cross-dimension requires gate rune on at least one side
     boolean crossDimension = !this.dimension.equals(other.dimension);
@@ -303,6 +361,7 @@ public class CustomPortal {
     tag.putInt("spawnX", spawnPos.getX());
     tag.putInt("spawnY", spawnPos.getY());
     tag.putInt("spawnZ", spawnPos.getZ());
+    tag.putString("axis", axis.getSerializedName());
 
     ListTag blocksList = new ListTag();
     for (BlockPos pos : portalBlocks) {
@@ -310,6 +369,14 @@ public class CustomPortal {
       blocksList.add(NbtUtils.writeBlockPos(pos));
     }
     tag.put("portalBlocks", blocksList);
+
+    if (!frameBlocks.isEmpty()) {
+      ListTag frameList = new ListTag();
+      for (BlockPos pos : frameBlocks) {
+        frameList.add(NbtUtils.writeBlockPos(pos));
+      }
+      tag.put("frameBlocks", frameList);
+    }
 
     if (!storedCatalystStack.isEmpty()) {
       tag.put("storedCatalyst", storedCatalystStack.saveOptional(registries));
@@ -352,6 +419,11 @@ public class CustomPortal {
 
       BlockPos spawnPos =
           new BlockPos(tag.getInt("spawnX"), tag.getInt("spawnY"), tag.getInt("spawnZ"));
+      Direction.Axis axis =
+          tag.contains("axis") ? Direction.Axis.byName(tag.getString("axis")) : Direction.Axis.X;
+      if (axis == null) {
+        axis = Direction.Axis.X;
+      }
 
       Set<BlockPos> portalBlocks = new HashSet<>();
       // portalBlocks is a list of IntArrayTag [x, y, z] NOT CompoundTag
@@ -363,6 +435,15 @@ public class CustomPortal {
         }
       }
 
+      Set<BlockPos> frameBlocks = new HashSet<>();
+      ListTag frameList = tag.getList("frameBlocks", Tag.TAG_INT_ARRAY);
+      for (int i = 0; i < frameList.size(); i++) {
+        int[] coords = frameList.getIntArray(i);
+        if (coords.length == 3) {
+          frameBlocks.add(new BlockPos(coords[0], coords[1], coords[2]));
+        }
+      }
+
       CustomPortal portal =
           new CustomPortal(
               id,
@@ -371,7 +452,9 @@ public class CustomPortal {
               frameMaterial,
               dimension,
               spawnPos,
+              axis,
               portalBlocks,
+              frameBlocks,
               ItemStack.parseOptional(registries, tag.getCompound("storedCatalyst")));
 
       if (tag.contains("linkedPortalId")) {
