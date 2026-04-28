@@ -70,6 +70,18 @@ You can disable redstone interaction entirely in config if you prefer.
 
 <!-- TODO: gif showing redstone toggle -->
 
+## Datapacks
+
+You can define entirely new custom portals using datapacks. With datapacks, you can:
+
+- Pick the **frame block** (single block or a block tag) and **catalyst item** for a portal
+- Set the portal's **color** (any of the 16 dye colors)
+- Choose how the catalyst is used (consumed, damaged, or untouched) and how much
+- Use **linked-pair** linking like the built-in portals, or **scaled dimension counterpart** linking that auto-generates the other side in a target dimension (like vanilla nether portals, with a configurable coordinate scale)
+- Restrict the **built-in 16 colored portals** with a frame allowlist/blocklist tag, or by claiming a frame block exclusively for a custom portal
+
+See [`examples/`](examples/) for the full datapack reference and ready-to-use example datapacks.
+
 ## Configuration
 
 Settings are split between two config files and can be edited in-game via the mod config screen (Mod Menu or the Mods button).
@@ -85,6 +97,7 @@ Settings are split between two config files and can be edited in-game via the mo
 | Setting | Default | Description |
 |---|---|---|
 | `maxPortalSize` | 64 | Maximum portal blocks a frame can enclose |
+| `minPortalSize` | 1 | Minimum portal blocks a frame must enclose |
 | `baseRange` | 100 | Linking range with no enhancer runes |
 | `enhancedRange` | 1,000 | Linking range with weak enhancer rune |
 | `strongRange` | 10,000 | Linking range with strong enhancer rune |
@@ -113,6 +126,8 @@ Beyond compatibility, this port also includes a number of improvements over the 
 >
 >**Gameplay**
 > - Rune removal revalidates links - in the original, removing a gate rune from a cross-dimension pair leaves them linked. This port properly breaks incompatible links when runes are removed
+> - Map integration - Portals broadcast their location and link status to compatible map/minimap mods.
+> - Datapacks integration
 >
 </details>
 
