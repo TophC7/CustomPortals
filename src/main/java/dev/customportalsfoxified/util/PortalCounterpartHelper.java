@@ -7,8 +7,6 @@ import dev.customportalsfoxified.data.CustomPortal;
 import dev.customportalsfoxified.data.PortalLinkKey;
 import dev.customportalsfoxified.data.PortalSavedData;
 import dev.customportalsfoxified.portal.PortalDefinition;
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -18,14 +16,32 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.Mth;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.border.WorldBorder;
 import net.minecraft.world.level.levelgen.Heightmap;
 import org.jetbrains.annotations.Nullable;
 
 public final class PortalCounterpartHelper {
+
+  private static final String LOG_PREFIX = "[counterpart-resolve]";
+
+  /** Forced-placement floor: vanilla never goes below Y=70 in the overworld. */
+  private static final int SAFE_FORCED_FLOOR_Y = 70;
+
+  /** Headroom above forced placement before bumping into the build ceiling. */
+  private static final int SAFE_FORCED_CEILING_HEADROOM = 4;
+
+  /**
+   * Slop added to the find radius beyond {@code searchRadius + maxAutogenPortalWidth}.
+   * Vanilla matches find-radius to create-radius which leaves a sliver of dead zone
+   * where a player-built portal placed adjacent to an auto-generated one falls just
+   * outside the find radius next entry.
+   */
+  private static final int FIND_RADIUS_BUFFER = 4;
 
   private PortalCounterpartHelper() {}
 
@@ -47,6 +63,15 @@ public final class PortalCounterpartHelper {
       return null;
     }
 
+    CustomPortalsFoxified.LOGGER.info(
+        "{} source={} dim={} spawn={} link={} target={}",
+        LOG_PREFIX,
+        sourcePortal.getId(),
+        sourceLevel.dimension().location(),
+        sourcePortal.getSpawnPos(),
+        sourcePortal.linkDescriptor(),
+        targetDimension.location());
+
     if (sourcePortal.isLinked()) {
       CustomPortal existingPartner =
           PortalSavedData.resolveLinkedPartner(sourcePortal, sourceLevel.getServer());
@@ -54,16 +79,36 @@ public final class PortalCounterpartHelper {
           && !existingPartner.isDefinitionDisabled()
           && !existingPartner.isRedstoneDisabled()
           && route.supportsDimensionPair(sourcePortal.getDimension(), existingPartner.getDimension())) {
+        CustomPortalsFoxified.LOGGER.info(
+            "{} existing-partner-valid id={}", LOG_PREFIX, existingPartner.getId());
         return existingPartner;
       }
+      CustomPortalsFoxified.LOGGER.info(
+          "{} existing-partner-invalid (null={}, disabled={}, redstone={}, dim-pair={}) — unlinking",
+          LOG_PREFIX,
+          existingPartner == null,
+          existingPartner != null && existingPartner.isDefinitionDisabled(),
+          existingPartner != null && existingPartner.isRedstoneDisabled(),
+          existingPartner == null
+              ? "n/a"
+              : route.supportsDimensionPair(sourcePortal.getDimension(), existingPartner.getDimension()));
       unlinkSourcePair(sourceLevel, sourcePortal);
     }
 
     BlockPos desiredTargetSpawn = route.transform(sourcePortal.getSpawnPos(), sourcePortal.getDimension());
     CustomPortal counterpart =
         findExistingCounterpart(targetLevel, sourcePortal, desiredTargetSpawn, route);
+    CustomPortalsFoxified.LOGGER.info(
+        "{} find-existing desired={} found={}",
+        LOG_PREFIX,
+        desiredTargetSpawn,
+        counterpart != null ? counterpart.getId() + " @ " + counterpart.getSpawnPos() : "null");
     if (counterpart == null) {
       counterpart = createCounterpartPortal(sourceLevel, targetLevel, sourcePortal, definition, desiredTargetSpawn, route);
+      CustomPortalsFoxified.LOGGER.info(
+          "{} create-new result={}",
+          LOG_PREFIX,
+          counterpart != null ? counterpart.getId() + " @ " + counterpart.getSpawnPos() : "null");
     }
     if (counterpart == null) {
       CustomPortalBlock.updateLitState(sourceLevel, sourcePortal);
@@ -71,14 +116,24 @@ public final class PortalCounterpartHelper {
       return null;
     }
 
-    // Many-to-one convergence: if the counterpart is already linked to another
-    // source portal, use a unilateral forward link so multiple sources share one
-    // destination without clobbering the counterpart's existing back-link.
-    // Mirrors vanilla nether portal behavior.
+    // Many-to-one convergence: when the counterpart already points at another source,
+    // use a unilateral forward link so multiple sources can share one destination
+    // without clobbering its existing back-link (mirrors vanilla nether behavior).
     if (counterpart.isLinked()) {
       sourcePortal.linkTo(counterpart);
+      CustomPortalsFoxified.LOGGER.info(
+          "{} unilateral-linkTo source={} -> counterpart={} (counterpart back-link={})",
+          LOG_PREFIX,
+          sourcePortal.getId(),
+          counterpart.getId(),
+          counterpart.getLinkedPortalId());
     } else {
       sourcePortal.link(counterpart);
+      CustomPortalsFoxified.LOGGER.info(
+          "{} bilateral-link source={} <-> counterpart={}",
+          LOG_PREFIX,
+          sourcePortal.getId(),
+          counterpart.getId());
     }
     PortalSavedData.get(sourceLevel).setDirty();
     PortalSavedData.get(targetLevel).setDirty();
@@ -89,15 +144,24 @@ public final class PortalCounterpartHelper {
 
   /**
    * Search for an existing counterpart portal in the target dimension. Mirrors vanilla
-   * nether portal behavior: multiple source portals may converge on a single
-   * destination portal (many-to-one). Unlinked portals are preferred, but an
-   * already-linked portal will be reused rather than creating a duplicate.
+   * nether-portal many-to-one convergence: unlinked candidates are preferred, but an
+   * already-linked candidate will be reused rather than carving a duplicate next to
+   * it (which would risk destroying the existing portal's frame). Find radius is
+   * asymmetric — see {@link #findRadiusFor}.
    */
   private static @Nullable CustomPortal findExistingCounterpart(
       ServerLevel targetLevel,
       CustomPortal sourcePortal,
       BlockPos desiredTargetSpawn,
       PortalDefinition.CounterpartRoute route) {
+    int findRadius = findRadiusFor(route, targetLevel.dimension());
+    PortalLinkKey lookupKey = PortalLinkKey.of(sourcePortal);
+    List<CustomPortal> bucket =
+        PortalSavedData.registry(targetLevel).getByLinkKey(lookupKey);
+    CustomPortalsFoxified.LOGGER.info(
+        "{} find-existing radius={} key={} bucket-size={}",
+        LOG_PREFIX, findRadius, lookupKey, bucket.size());
+
     CustomPortal bestUnlinkedInY = null;
     double bestUnlinkedInYDistSq = Double.MAX_VALUE;
     CustomPortal bestLinkedInY = null;
@@ -107,12 +171,15 @@ public final class PortalCounterpartHelper {
     CustomPortal bestLinkedAnyY = null;
     double bestLinkedAnyYDistSq = Double.MAX_VALUE;
 
-    for (CustomPortal candidate :
-        PortalSavedData.registry(targetLevel).getByLinkKey(PortalLinkKey.of(sourcePortal))) {
+    for (CustomPortal candidate : bucket) {
       if (candidate.getId().equals(sourcePortal.getId())) continue;
-      if (candidate.isDefinitionDisabled() || candidate.isRedstoneDisabled()) continue;
-      if (!route.supportsDimensionPair(sourcePortal.getDimension(), candidate.getDimension())) continue;
-      if (!isWithinRouteColumn(candidate.getSpawnPos(), desiredTargetSpawn, route)) continue;
+      String skipReason =
+          candidateSkipReason(candidate, sourcePortal, route, desiredTargetSpawn, findRadius);
+      if (skipReason != null) {
+        CustomPortalsFoxified.LOGGER.info(
+            "{} skip candidate {} ({})", LOG_PREFIX, candidate.getId(), skipReason);
+        continue;
+      }
 
       double distSq = candidate.getSpawnPos().distSqr(desiredTargetSpawn);
       boolean inVerticalWindow = isWithinVerticalWindow(candidate.getSpawnPos(), desiredTargetSpawn, route);
@@ -145,6 +212,35 @@ public final class PortalCounterpartHelper {
     return bestLinkedAnyY;
   }
 
+  private static @Nullable String candidateSkipReason(
+      CustomPortal candidate,
+      CustomPortal sourcePortal,
+      PortalDefinition.CounterpartRoute route,
+      BlockPos desiredTargetSpawn,
+      int findRadius) {
+    if (candidate.isDefinitionDisabled() || candidate.isRedstoneDisabled()) {
+      return "disabled-def="
+          + candidate.isDefinitionDisabled()
+          + ", redstone="
+          + candidate.isRedstoneDisabled();
+    }
+    if (!route.supportsDimensionPair(sourcePortal.getDimension(), candidate.getDimension())) {
+      return "dim-pair mismatch source="
+          + sourcePortal.getDimension().location()
+          + " candidate="
+          + candidate.getDimension().location();
+    }
+    if (!isWithinHorizontalRadius(candidate.getSpawnPos(), desiredTargetSpawn, findRadius)) {
+      return "out of radius="
+          + findRadius
+          + ", candidate="
+          + candidate.getSpawnPos()
+          + ", desired="
+          + desiredTargetSpawn;
+    }
+    return null;
+  }
+
   private static @Nullable CustomPortal createCounterpartPortal(
       ServerLevel sourceLevel,
       ServerLevel targetLevel,
@@ -170,7 +266,7 @@ public final class PortalCounterpartHelper {
     if (frameMaterial == null) return null;
 
     BlockPos desiredMin = desiredTargetSpawn.subtract(template.spawnOffset());
-    PlacementPlan placement = findPlacement(targetLevel, template, frameMaterial, desiredMin, route);
+    PlacementPlan placement = findVanillaPlacement(targetLevel, template, desiredMin, route);
     if (placement == null) {
       CustomPortalsFoxified.LOGGER.debug(
           "No safe counterpart placement found for portal {} in {}",
@@ -183,12 +279,23 @@ public final class PortalCounterpartHelper {
     Set<BlockPos> portalBlocks = translateOffsets(placementMin, template.portalOffsets());
     Set<BlockPos> frameBlocks = translateOffsets(placementMin, template.frameOffsets());
 
-    BlockState airState = Blocks.AIR.defaultBlockState();
-    for (BlockPos pos : translateOffsets(placementMin, placement.clearOffsets())) {
-      targetLevel.setBlock(pos, airState, 3);
+    BlockState frameState = frameMaterial.defaultBlockState();
+
+    // Forced placement: mirror vanilla PortalForcer.createPortal's no-spot-found branch.
+    // Build a 1-block-thick floor under the frame footprint, then air-clear the frame
+    // and portal volume + a 1-block clearing on each side along the front/back direction
+    // so the counterpart is reachable. Frame and portal blocks are written afterwards
+    // and overwrite whatever the clearing left behind.
+    if (placement.forced()) {
+      BlockState airState = Blocks.AIR.defaultBlockState();
+      for (BlockPos pos : translateOffsets(placementMin, computeForcedFloorOffsets(template))) {
+        targetLevel.setBlock(pos, frameState, 3);
+      }
+      for (BlockPos pos : translateOffsets(placementMin, computeForcedClearOffsets(template))) {
+        targetLevel.setBlock(pos, airState, 3);
+      }
     }
 
-    BlockState frameState = frameMaterial.defaultBlockState();
     for (BlockPos pos : frameBlocks) {
       targetLevel.setBlock(pos, frameState, 3);
     }
@@ -222,357 +329,197 @@ public final class PortalCounterpartHelper {
     return counterpart;
   }
 
-  private static @Nullable PlacementPlan findPlacement(
+  /**
+   * Faithful port of vanilla {@link net.minecraft.world.level.portal.PortalForcer#createPortal}
+   * generalized for variable portal shapes captured from the source portal. Falls back to
+   * forced placement (clamped Y, caller air-clears) when no natural spot is found.
+   */
+  private static @Nullable PlacementPlan findVanillaPlacement(
       ServerLevel level,
       PortalTemplate template,
-      Block frameMaterial,
       BlockPos desiredMin,
       PortalDefinition.CounterpartRoute route) {
-    List<BlockPos> horizontalOffsets = buildHorizontalOffsets(route.searchRadius());
-    BlockPos bestPos = null;
-    PlacementScore bestScore = null;
-
-    for (BlockPos horizontalOffset : horizontalOffsets) {
-      int candidateX = desiredMin.getX() + horizontalOffset.getX();
-      int candidateZ = desiredMin.getZ() + horizontalOffset.getZ();
-      int logicalTopY =
-          Math.min(level.getMaxBuildHeight(), level.getMinBuildHeight() + level.getLogicalHeight()) - 1;
-      int topY =
-          Math.min(
-              logicalTopY,
-              level.getHeight(Heightmap.Types.MOTION_BLOCKING, candidateX, candidateZ));
-
-      for (int candidateY = topY; candidateY >= level.getMinBuildHeight(); candidateY--) {
-        BlockPos candidateMin = new BlockPos(candidateX, candidateY, candidateZ);
-        PlacementScore score = scorePlacement(level, template, frameMaterial, candidateMin, desiredMin);
-        if (score == null) {
-          continue;
-        }
-
-        if (bestScore == null || score.compareTo(bestScore) > 0) {
-          bestScore = score;
-          bestPos = candidateMin;
-        }
-      }
-    }
-
-    if (bestPos == null && route.verticalSearchRadius() > 0) {
-      List<Integer> verticalOffsets = buildVerticalOffsets(route.verticalSearchRadius());
-      for (BlockPos horizontalOffset : horizontalOffsets) {
-        for (int verticalOffset : verticalOffsets) {
-          BlockPos candidateMin =
-              desiredMin.offset(horizontalOffset.getX(), verticalOffset, horizontalOffset.getZ());
-          PlacementScore score = scorePlacement(level, template, frameMaterial, candidateMin, desiredMin);
-          if (score == null) {
-            continue;
-          }
-
-          if (bestScore == null || score.compareTo(bestScore) > 0) {
-            bestScore = score;
-            bestPos = candidateMin;
-          }
-        }
-      }
-    }
-
-    if (bestPos != null) {
-      return new PlacementPlan(bestPos, Set.of());
-    }
-    return findCarvedPlacement(level, template, frameMaterial, desiredMin, route);
-  }
-
-  private static @Nullable PlacementScore scorePlacement(
-      ServerLevel level,
-      PortalTemplate template,
-      Block frameMaterial,
-      BlockPos minPos,
-      BlockPos desiredMin) {
+    WorldBorder border = level.getWorldBorder();
     int minY = level.getMinBuildHeight();
-    int maxYExclusive =
-        Math.min(level.getMaxBuildHeight(), level.getMinBuildHeight() + level.getLogicalHeight());
-    int carvedBlocks = 0;
+    int logicalTop =
+        Math.min(level.getMaxBuildHeight(), minY + level.getLogicalHeight()) - 1;
+    int maxYExclusive = logicalTop + 1;
+    int searchRadius = Math.max(1, route.searchRadius());
+    int portalHeight = template.height();
 
-    for (BlockPos offset : template.frameOffsets()) {
-      BlockPos pos = minPos.offset(offset);
-      if (pos.getY() < minY || pos.getY() >= maxYExclusive) return null;
+    BlockPos best = null;
+    double bestDist = -1.0D;
+    BlockPos fallback = null;
+    double fallbackDist = -1.0D;
 
-      BlockState state = level.getBlockState(pos);
-      if (state.is(frameMaterial)) continue;
-      if (!canReplaceForCounterpart(level, pos, state)) return null;
-      if (!state.isAir()) carvedBlocks++;
+    BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+    for (BlockPos.MutableBlockPos spiralPos :
+        BlockPos.spiralAround(desiredMin, searchRadius, Direction.EAST, Direction.SOUTH)) {
+      if (!border.isWithinBounds(spiralPos)) continue;
+      int columnTop =
+          Math.min(logicalTop, level.getHeight(Heightmap.Types.MOTION_BLOCKING, spiralPos.getX(), spiralPos.getZ()));
+
+      for (int l = columnTop; l >= minY; l--) {
+        cursor.set(spiralPos.getX(), l, spiralPos.getZ());
+        if (!canPortalReplaceBlock(level, cursor)) continue;
+
+        // Slide down through the contiguous replaceable run; vanilla bottoms out on
+        // a flat floor (run == 0) or accepts an open shaft taller than the portal.
+        int top = l;
+        while (l > minY) {
+          cursor.set(spiralPos.getX(), l - 1, spiralPos.getZ());
+          if (!canPortalReplaceBlock(level, cursor)) break;
+          l--;
+        }
+        if (l + portalHeight + 1 > logicalTop) continue;
+        int run = top - l;
+        if (run > 0 && run < portalHeight) continue;
+
+        BlockPos anchor = new BlockPos(spiralPos.getX(), l, spiralPos.getZ());
+        if (canHostFrame(level, template, anchor, 0, minY, maxYExclusive)) {
+          double d2 = desiredMin.distSqr(anchor);
+          if (canHostFrame(level, template, anchor, -1, minY, maxYExclusive)
+              && canHostFrame(level, template, anchor, 1, minY, maxYExclusive)
+              && (bestDist == -1.0D || d2 < bestDist)) {
+            bestDist = d2;
+            best = anchor;
+          }
+          if (bestDist == -1.0D && (fallbackDist == -1.0D || d2 < fallbackDist)) {
+            fallbackDist = d2;
+            fallback = anchor;
+          }
+        }
+      }
     }
 
-    for (BlockPos offset : template.portalOffsets()) {
-      BlockPos pos = minPos.offset(offset);
-      if (pos.getY() < minY || pos.getY() >= maxYExclusive) return null;
-
-      BlockState state = level.getBlockState(pos);
-      if (!canReplaceForCounterpart(level, pos, state)) return null;
-      if (!state.isAir()) carvedBlocks++;
+    BlockPos chosen = best != null ? best : fallback;
+    if (chosen != null) {
+      return new PlacementPlan(chosen, false);
     }
 
-    int supportScore = computeSupportScore(level, template, minPos);
-    if (supportScore < template.requiredSupportCount()) {
-      return null;
-    }
-
-    int exitScore = computeExitSafetyScore(level, template, minPos);
-    if (template.axis() != Direction.Axis.Y && exitScore <= 0) {
-      return null;
-    }
-
-    int distancePenalty =
-        Math.abs(minPos.getX() - desiredMin.getX())
-            + Math.abs(minPos.getY() - desiredMin.getY())
-            + Math.abs(minPos.getZ() - desiredMin.getZ());
-
-    return new PlacementScore(exitScore, supportScore, -carvedBlocks, -distancePenalty);
+    int safeFloorY = Math.max(minY + 1, SAFE_FORCED_FLOOR_Y);
+    int safeCeilY = logicalTop - (portalHeight + SAFE_FORCED_CEILING_HEADROOM);
+    if (safeCeilY < safeFloorY) return null;
+    int forcedY = Mth.clamp(desiredMin.getY(), safeFloorY, safeCeilY);
+    BlockPos forcedAnchor = new BlockPos(desiredMin.getX(), forcedY, desiredMin.getZ());
+    if (!border.isWithinBounds(forcedAnchor)) return null;
+    return new PlacementPlan(forcedAnchor, true);
   }
 
   /**
-   * Mirrors vanilla {@code PortalForcer.canPortalReplaceBlock}: only blocks that are
-   * explicitly replaceable (air, snow layers, tall grass, etc.) and contain no fluid
-   * may be overwritten. This prevents the placer from carving through solid terrain
-   * (stone, netherrack, etc.) to brute-force a technically valid but practically
-   * unusable placement.
+   * Mirrors vanilla {@code PortalForcer.canHostFrame}. For vertical portals the frame's
+   * bottom row must be solid (its floor — overwritten by frame placement afterwards);
+   * every other frame slot + portal slot must be replaceable. For Y-axis portals all
+   * slots are required to be replaceable. {@code lateralOffsetScale} shifts the test
+   * along the front/back direction so the chosen spot has standing room on both sides.
    */
-  private static boolean canReplaceForCounterpart(
-      ServerLevel level, BlockPos pos, BlockState state) {
-    if (state.getBlock() instanceof CustomPortalBlock) return false;
-    return state.canBeReplaced() && state.getFluidState().isEmpty();
-  }
-
-  private static @Nullable PlacementPlan findCarvedPlacement(
+  private static boolean canHostFrame(
       ServerLevel level,
       PortalTemplate template,
-      Block frameMaterial,
-      BlockPos desiredMin,
-      PortalDefinition.CounterpartRoute route) {
-    List<BlockPos> horizontalOffsets = buildHorizontalOffsets(route.searchRadius());
-    List<Integer> verticalOffsets = buildVerticalOffsets(route.verticalSearchRadius());
-    PlacementPlan bestPlan = null;
-    PlacementScore bestScore = null;
-
-    for (BlockPos horizontalOffset : horizontalOffsets) {
-      for (int verticalOffset : verticalOffsets) {
-        BlockPos candidateMin =
-            desiredMin.offset(horizontalOffset.getX(), verticalOffset, horizontalOffset.getZ());
-        PlacementPlanScore planScore =
-            scoreCarvedPlacement(level, template, frameMaterial, candidateMin, desiredMin);
-        if (planScore == null) {
-          continue;
-        }
-
-        if (bestScore == null || planScore.score().compareTo(bestScore) > 0) {
-          bestScore = planScore.score();
-          bestPlan = planScore.plan();
-        }
-      }
-    }
-
-    return bestPlan;
-  }
-
-  private static @Nullable PlacementPlanScore scoreCarvedPlacement(
-      ServerLevel level,
-      PortalTemplate template,
-      Block frameMaterial,
-      BlockPos minPos,
-      BlockPos desiredMin) {
-    int minY = level.getMinBuildHeight();
-    int maxYExclusive =
-        Math.min(level.getMaxBuildHeight(), level.getMinBuildHeight() + level.getLogicalHeight());
-    int carvedBlocks = 0;
+      BlockPos anchor,
+      int lateralOffsetScale,
+      int minY,
+      int maxYExclusive) {
+    BlockPos shifted = anchor.relative(template.frontDirection(), lateralOffsetScale);
+    boolean hasFloorRow = template.axis() != Direction.Axis.Y;
+    int floorRowY = template.lowestOccupiedY();
 
     for (BlockPos offset : template.frameOffsets()) {
-      BlockPos pos = minPos.offset(offset);
-      if (pos.getY() < minY || pos.getY() >= maxYExclusive) return null;
+      BlockPos pos = shifted.offset(offset);
+      if (pos.getY() < minY || pos.getY() >= maxYExclusive) return false;
 
-      BlockState state = level.getBlockState(pos);
-      if (state.is(frameMaterial)) continue;
-      if (!canCarveForCounterpart(level, pos, state)) return null;
-      if (!state.isAir()) carvedBlocks++;
+      if (hasFloorRow && offset.getY() == floorRowY) {
+        if (!level.getBlockState(pos).isSolid()) return false;
+      } else {
+        if (!canPortalReplaceBlock(level, pos)) return false;
+      }
     }
-
     for (BlockPos offset : template.portalOffsets()) {
-      BlockPos pos = minPos.offset(offset);
-      if (pos.getY() < minY || pos.getY() >= maxYExclusive) return null;
-
-      BlockState state = level.getBlockState(pos);
-      if (!canCarveForCounterpart(level, pos, state)) return null;
-      if (!state.isAir()) carvedBlocks++;
-    }
-
-    int supportScore = computeSupportScore(level, template, minPos);
-    if (supportScore < template.requiredSupportCount()) {
-      return null;
-    }
-
-    Set<BlockPos> clearOffsets = findCarvedExitOffsets(level, template, minPos);
-    if (clearOffsets == null) {
-      return null;
-    }
-
-    for (BlockPos offset : clearOffsets) {
-      BlockPos pos = minPos.offset(offset);
-      if (pos.getY() < minY || pos.getY() >= maxYExclusive) return null;
-
-      BlockState state = level.getBlockState(pos);
-      if (!canCarveForCounterpart(level, pos, state)) return null;
-      if (!state.isAir()) carvedBlocks++;
-    }
-
-    int distancePenalty =
-        Math.abs(minPos.getX() - desiredMin.getX())
-            + Math.abs(minPos.getY() - desiredMin.getY())
-            + Math.abs(minPos.getZ() - desiredMin.getZ());
-    PlacementScore score =
-        new PlacementScore(clearOffsets.size(), supportScore, -carvedBlocks, -distancePenalty);
-    return new PlacementPlanScore(new PlacementPlan(minPos, clearOffsets), score);
-  }
-
-  private static boolean canCarveForCounterpart(ServerLevel level, BlockPos pos, BlockState state) {
-    if (state.getBlock() instanceof CustomPortalBlock) return false;
-    if (state.getFluidState().isEmpty() && (state.isAir() || state.canBeReplaced())) return true;
-    if (!state.getFluidState().isEmpty()) return false;
-    if (state.hasBlockEntity()) return false;
-    return state.getDestroySpeed(level, pos) >= 0.0F;
-  }
-
-  private static @Nullable Set<BlockPos> findCarvedExitOffsets(
-      ServerLevel level, PortalTemplate template, BlockPos minPos) {
-    if (template.axis() == Direction.Axis.Y) {
-      Set<BlockPos> clearOffsets = buildHorizontalExitOffsets(template);
-      return canCarveAll(level, minPos, clearOffsets) ? clearOffsets : null;
-    }
-
-    Set<BlockPos> frontOffsets = buildVerticalExitOffsets(template, template.frontDirection());
-    boolean frontClear = canCarveAll(level, minPos, frontOffsets);
-    Set<BlockPos> backOffsets = buildVerticalExitOffsets(template, template.frontDirection().getOpposite());
-    boolean backClear = canCarveAll(level, minPos, backOffsets);
-
-    if (frontClear && backClear) {
-      return countCarvedBlocks(level, minPos, frontOffsets) <= countCarvedBlocks(level, minPos, backOffsets)
-          ? frontOffsets
-          : backOffsets;
-    }
-    if (frontClear) return frontOffsets;
-    return backClear ? backOffsets : null;
-  }
-
-  private static Set<BlockPos> buildHorizontalExitOffsets(PortalTemplate template) {
-    Set<BlockPos> clearOffsets = new HashSet<>();
-    for (BlockPos portalOffset : template.portalOffsets()) {
-      for (int dy = 1; dy <= 3; dy++) {
-        clearOffsets.add(portalOffset.above(dy));
-      }
-    }
-    return clearOffsets;
-  }
-
-  private static Set<BlockPos> buildVerticalExitOffsets(PortalTemplate template, Direction side) {
-    Set<BlockPos> clearOffsets = new HashSet<>();
-    BlockPos spawn = template.spawnOffset();
-    Direction lateral = template.lateralDirection();
-    for (int depth = 1; depth <= 3; depth++) {
-      for (int lateralOffset = -1; lateralOffset <= 1; lateralOffset++) {
-        for (int dy = 0; dy <= 2; dy++) {
-          clearOffsets.add(spawn.relative(side, depth).relative(lateral, lateralOffset).above(dy));
-        }
-      }
-    }
-    return clearOffsets;
-  }
-
-  private static boolean canCarveAll(ServerLevel level, BlockPos minPos, Set<BlockPos> offsets) {
-    for (BlockPos offset : offsets) {
-      BlockPos pos = minPos.offset(offset);
-      if (!canCarveForCounterpart(level, pos, level.getBlockState(pos))) {
-        return false;
-      }
+      BlockPos pos = shifted.offset(offset);
+      if (pos.getY() < minY || pos.getY() >= maxYExclusive) return false;
+      if (!canPortalReplaceBlock(level, pos)) return false;
     }
     return true;
   }
 
-  private static int countCarvedBlocks(ServerLevel level, BlockPos minPos, Set<BlockPos> offsets) {
-    int carvedBlocks = 0;
-    for (BlockPos offset : offsets) {
-      if (!level.getBlockState(minPos.offset(offset)).isAir()) {
-        carvedBlocks++;
-      }
-    }
-    return carvedBlocks;
+  /** Mirrors vanilla {@code PortalForcer.canPortalReplaceBlock}; rejects existing portals so we never carve through one. */
+  private static boolean canPortalReplaceBlock(ServerLevel level, BlockPos pos) {
+    BlockState state = level.getBlockState(pos);
+    if (state.getBlock() instanceof CustomPortalBlock) return false;
+    return state.canBeReplaced() && state.getFluidState().isEmpty();
   }
 
-  private static int computeSupportScore(ServerLevel level, PortalTemplate template, BlockPos minPos) {
-    int support = 0;
-    for (BlockPos offset : template.supportOffsets()) {
-      BlockPos belowPos = minPos.offset(offset);
-      if (level.getBlockState(belowPos).isSolid()) {
-        support++;
-      }
+  /** Frame-bottom-row offsets the forced placement writes as solid floor; empty for Y-axis portals. */
+  private static Set<BlockPos> computeForcedFloorOffsets(PortalTemplate template) {
+    if (template.axis() == Direction.Axis.Y) return Set.of();
+    int floorRowY = template.lowestOccupiedY();
+    Set<BlockPos> floor = new HashSet<>();
+    for (BlockPos offset : template.frameOffsets()) {
+      if (offset.getY() == floorRowY) floor.add(offset);
     }
-    return support;
+    return floor;
   }
 
-  private static int computeExitSafetyScore(ServerLevel level, PortalTemplate template, BlockPos minPos) {
-    if (template.axis() == Direction.Axis.Y) {
-      BlockPos spawn = minPos.offset(template.spawnOffset());
-      int score = 0;
-      for (int dy = 1; dy <= 3; dy++) {
-        BlockState state = level.getBlockState(spawn.above(dy));
-        if (state.isAir() || state.canBeReplaced()) {
-          score++;
-        }
-      }
-      return score;
+  /**
+   * Air-clear offsets for the forced placement: the frame+portal bounding box at
+   * {@code y >= 0}, expanded one block front/back for vertical portals so the player
+   * has standing space. Frame and portal placements overwrite the relevant slots after.
+   */
+  private static Set<BlockPos> computeForcedClearOffsets(PortalTemplate template) {
+    int minX = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE;
+    int minY = Integer.MAX_VALUE, maxY = Integer.MIN_VALUE;
+    int minZ = Integer.MAX_VALUE, maxZ = Integer.MIN_VALUE;
+    for (BlockPos o : template.frameOffsets()) {
+      minX = Math.min(minX, o.getX()); maxX = Math.max(maxX, o.getX());
+      minY = Math.min(minY, o.getY()); maxY = Math.max(maxY, o.getY());
+      minZ = Math.min(minZ, o.getZ()); maxZ = Math.max(maxZ, o.getZ());
+    }
+    for (BlockPos o : template.portalOffsets()) {
+      minX = Math.min(minX, o.getX()); maxX = Math.max(maxX, o.getX());
+      minY = Math.min(minY, o.getY()); maxY = Math.max(maxY, o.getY());
+      minZ = Math.min(minZ, o.getZ()); maxZ = Math.max(maxZ, o.getZ());
     }
 
-    Direction normalA = template.frontDirection();
-    Direction normalB = normalA.getOpposite();
-    return Math.max(
-        scoreExitSide(level, template, minPos, normalA), scoreExitSide(level, template, minPos, normalB));
-  }
+    int frontX = template.frontDirection().getStepX();
+    int frontZ = template.frontDirection().getStepZ();
+    boolean horizontalPortal = template.axis() != Direction.Axis.Y;
 
-  private static int scoreExitSide(
-      ServerLevel level, PortalTemplate template, BlockPos minPos, Direction side) {
-    BlockPos spawn = minPos.offset(template.spawnOffset());
-    Direction lateral = template.lateralDirection();
-    int score = 0;
-
-    for (int lateralOffset = -1; lateralOffset <= 1; lateralOffset++) {
-      BlockPos floorPos = spawn.relative(side).relative(lateral, lateralOffset);
-      if (!level.getBlockState(floorPos.below()).isSolid()) {
-        return -1;
-      }
-
-      for (int dy = 0; dy <= 1; dy++) {
-        BlockState state = level.getBlockState(floorPos.above(dy));
-        if (!(state.isAir() || state.canBeReplaced())) {
-          return -1;
-        }
-        score++;
-      }
-    }
-
-    for (int depth = 2; depth <= 3; depth++) {
-      BlockPos ahead = spawn.relative(side, depth);
-      for (int dy = 0; dy <= 1; dy++) {
-        BlockState state = level.getBlockState(ahead.above(dy));
-        if (state.isAir() || state.canBeReplaced()) {
-          score++;
+    Set<BlockPos> clear = new HashSet<>();
+    for (int y = Math.max(minY, 0); y <= maxY; y++) {
+      for (int x = minX; x <= maxX; x++) {
+        for (int z = minZ; z <= maxZ; z++) {
+          clear.add(new BlockPos(x, y, z));
+          if (horizontalPortal) {
+            clear.add(new BlockPos(x + frontX, y, z + frontZ));
+            clear.add(new BlockPos(x - frontX, y, z - frontZ));
+          }
         }
       }
     }
-
-    return score;
+    return clear;
   }
 
-  private static boolean isWithinRouteColumn(
-      BlockPos candidate, BlockPos desired, PortalDefinition.CounterpartRoute route) {
+  /**
+   * Find radius for existing counterparts. Asymmetric to mirror vanilla (128 in
+   * overworld vs 16 in nether for 8× scale): the "larger" side scales by
+   * {@code coordinateScale}. {@link #FIND_RADIUS_BUFFER} closes the dead-zone where
+   * an adjacent player-built portal would otherwise fall outside the find radius
+   * after auto-gen drifted to the spiral edge.
+   */
+  private static int findRadiusFor(
+      PortalDefinition.CounterpartRoute route, ResourceKey<Level> targetDim) {
+    int smallSideRadius =
+        route.searchRadius() + route.maxAutogenPortalWidth() + FIND_RADIUS_BUFFER;
+    if (route.dimensionA().equals(targetDim)) {
+      return Math.max(1, (int) Math.ceil(smallSideRadius * route.coordinateScale()));
+    }
+    return Math.max(1, smallSideRadius);
+  }
+
+  private static boolean isWithinHorizontalRadius(BlockPos candidate, BlockPos desired, int radius) {
     int dx = Math.abs(candidate.getX() - desired.getX());
     int dz = Math.abs(candidate.getZ() - desired.getZ());
-    return dx <= route.searchRadius() && dz <= route.searchRadius();
+    return dx <= radius && dz <= radius;
   }
 
   private static boolean isWithinVerticalWindow(
@@ -603,36 +550,14 @@ public final class PortalCounterpartHelper {
     return positions;
   }
 
-  private static List<BlockPos> buildHorizontalOffsets(int radius) {
-    List<BlockPos> offsets = new ArrayList<>();
-    for (int dx = -radius; dx <= radius; dx++) {
-      for (int dz = -radius; dz <= radius; dz++) {
-        offsets.add(new BlockPos(dx, 0, dz));
-      }
-    }
-    offsets.sort(Comparator.comparingInt(offset -> offset.getX() * offset.getX() + offset.getZ() * offset.getZ()));
-    return offsets;
-  }
-
-  private static List<Integer> buildVerticalOffsets(int radius) {
-    List<Integer> offsets = new ArrayList<>();
-    offsets.add(0);
-    for (int delta = 1; delta <= radius; delta++) {
-      offsets.add(delta);
-      offsets.add(-delta);
-    }
-    return offsets;
-  }
-
   private record PortalTemplate(
       Direction.Axis axis,
       int width,
       int height,
+      int lowestOccupiedY,
       Set<BlockPos> portalOffsets,
       Set<BlockPos> frameOffsets,
-      Set<BlockPos> supportOffsets,
       Direction frontDirection,
-      Direction lateralDirection,
       BlockPos spawnOffset) {
 
     private static @Nullable PortalTemplate capture(ServerLevel level, CustomPortal portal) {
@@ -694,7 +619,6 @@ public final class PortalCounterpartHelper {
 
       addPortalCorners(frameOffsets, minPos, axis, minPortalX, maxPortalX, minPortalY, maxPortalY, minPortalZ, maxPortalZ);
 
-      Set<BlockPos> supportOffsets = new HashSet<>();
       int lowestOccupiedOffsetY = Integer.MAX_VALUE;
       for (BlockPos offset : frameOffsets) {
         lowestOccupiedOffsetY = Math.min(lowestOccupiedOffsetY, offset.getY());
@@ -703,26 +627,11 @@ public final class PortalCounterpartHelper {
         lowestOccupiedOffsetY = Math.min(lowestOccupiedOffsetY, offset.getY());
       }
 
-      Set<BlockPos> supportTargets = new HashSet<>();
-      supportTargets.addAll(frameOffsets);
-      supportTargets.addAll(portalOffsets);
-      for (BlockPos offset : supportTargets) {
-        if (offset.getY() == lowestOccupiedOffsetY) {
-          supportOffsets.add(offset.below());
-        }
-      }
-
       Direction frontDirection =
           switch (axis) {
             case X -> Direction.SOUTH;
             case Z -> Direction.EAST;
             case Y -> Direction.UP;
-          };
-      Direction lateralDirection =
-          switch (axis) {
-            case X -> Direction.EAST;
-            case Z -> Direction.SOUTH;
-            case Y -> Direction.EAST;
           };
 
       int[] dimensions =
@@ -736,16 +645,11 @@ public final class PortalCounterpartHelper {
           axis,
           dimensions[0],
           dimensions[1],
+          lowestOccupiedOffsetY,
           portalOffsets,
           frameOffsets,
-          supportOffsets,
           frontDirection,
-          lateralDirection,
           portal.getSpawnPos().subtract(minPos));
-    }
-
-    private int requiredSupportCount() {
-      return supportOffsets.size();
     }
 
     private static void addPortalCorners(
@@ -792,25 +696,5 @@ public final class PortalCounterpartHelper {
     }
   }
 
-  private record PlacementScore(
-      int exitScore, int supportScore, int carveScore, int distanceScore) implements Comparable<PlacementScore> {
-
-    @Override
-    public int compareTo(PlacementScore other) {
-      int compare = Integer.compare(exitScore, other.exitScore);
-      if (compare != 0) return compare;
-
-      compare = Integer.compare(supportScore, other.supportScore);
-      if (compare != 0) return compare;
-
-      compare = Integer.compare(carveScore, other.carveScore);
-      if (compare != 0) return compare;
-
-      return Integer.compare(distanceScore, other.distanceScore);
-    }
-  }
-
-  private record PlacementPlan(BlockPos minPos, Set<BlockPos> clearOffsets) {}
-
-  private record PlacementPlanScore(PlacementPlan plan, PlacementScore score) {}
+  private record PlacementPlan(BlockPos minPos, boolean forced) {}
 }

@@ -227,28 +227,6 @@ public final class PortalDefinitions {
     return definition.keepsPortalActiveWithoutLink() || portal.isLinked();
   }
 
-  public static boolean areDefinitionsCompatibleForLink(CustomPortal left, CustomPortal right) {
-    if (left.getDefinitionId() == null || right.getDefinitionId() == null) {
-      return false;
-    }
-    if (!left.getDefinitionId().equals(right.getDefinitionId())) {
-      return false;
-    }
-
-    PortalDefinition definition = activeDefinitions.get(left.getDefinitionId());
-    if (definition == null) {
-      return false;
-    }
-
-    if (definition.usesCounterpartRoute()) {
-      PortalDefinition.CounterpartRoute route = definition.counterpartRoute();
-      return route != null
-          && route.supportsDimensionPair(left.getDimension(), right.getDimension());
-    }
-
-    return true;
-  }
-
   private static void rebuildActiveDefinitions() {
     LinkedHashMap<ResourceLocation, PortalDefinition> merged = new LinkedHashMap<>();
     for (PortalDefinition definition : sortedValues(BUILTIN_DEFINITIONS)) {

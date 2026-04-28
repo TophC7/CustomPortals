@@ -64,6 +64,8 @@ import org.joml.Vector3f;
 public class CustomPortalBlock extends HalfTransparentBlock
     implements Portal, SimpleWaterloggedBlock {
 
+  private static final String LOG_PREFIX_DEST = "[portal-dest]";
+
   public static final EnumProperty<DyeColor> COLOR = EnumProperty.create("color", DyeColor.class);
   public static final EnumProperty<Direction.Axis> AXIS =
       EnumProperty.create("axis", Direction.Axis.class);
@@ -135,35 +137,72 @@ public class CustomPortalBlock extends HalfTransparentBlock
   public @Nullable DimensionTransition getPortalDestination(
       ServerLevel level, Entity entity, BlockPos pos) {
     CustomPortal portal = PortalSavedData.registry(level).getPortalAt(pos);
-    if (portal == null || portal.isDefinitionDisabled()) return null;
+    if (portal == null) {
+      CustomPortalsFoxified.LOGGER.info(
+          "{} no portal data at {} in {}", LOG_PREFIX_DEST, pos, level.dimension().location());
+      return null;
+    }
+    if (portal.isDefinitionDisabled()) {
+      CustomPortalsFoxified.LOGGER.info(
+          "{} portal {} disabled-def at {}", LOG_PREFIX_DEST, portal.getId(), pos);
+      return null;
+    }
 
     PortalDefinition definition =
         portal.getDefinitionId() != null ? PortalDefinitions.get(portal.getDefinitionId()) : null;
-    if (definition != null && definition.usesCounterpartRoute() && !portal.isLinked()) {
-      CustomPortal linked = PortalLinkHelper.tryResolveLink(level, portal);
-      if (linked != null) {
-        MapPortalSnapshotSync.sendToInterestedPlayers(level.getServer());
-      }
+    CustomPortalsFoxified.LOGGER.info(
+        "{} entry portal={} dim={} link={} def={} counterpart-route={}",
+        LOG_PREFIX_DEST,
+        portal.getId(),
+        level.dimension().location(),
+        portal.linkDescriptor(),
+        definition != null ? definition.id() : "null",
+        definition != null && definition.usesCounterpartRoute());
+
+    // Stale link: linkedPortalId points at a partner that no longer exists (partner
+    // was removed via a path that didn't unlink us — mod conflict, /setblock, etc.).
+    // Clear so the lazy resolve below can re-fire.
+    CustomPortal linked = PortalSavedData.resolveLinkedPartner(portal, level.getServer());
+    if (portal.isLinked() && linked == null) {
+      CustomPortalsFoxified.LOGGER.warn(
+          "{} stale link on portal {} -> {} not found, clearing",
+          LOG_PREFIX_DEST, portal.getId(), portal.linkDescriptor());
+      portal.unlink();
+      PortalSavedData.get(level).setDirty();
     }
-    if (!portal.isLinked()) return null;
+
+    if (definition != null && definition.usesCounterpartRoute() && !portal.isLinked()) {
+      CustomPortal resolved = PortalLinkHelper.tryResolveLink(level, portal);
+      if (resolved != null) {
+        MapPortalSnapshotSync.sendToInterestedPlayers(level.getServer());
+        linked = resolved;
+      }
+      CustomPortalsFoxified.LOGGER.info(
+          "{} post-resolve portal={} link={}",
+          LOG_PREFIX_DEST, portal.getId(), portal.linkDescriptor());
+    }
+    if (!portal.isLinked()) {
+      CustomPortalsFoxified.LOGGER.info("{} still unlinked, returning null", LOG_PREFIX_DEST);
+      return null;
+    }
+
+    if (linked == null) {
+      // Linked flag set but partner unresolvable — already warned above when we
+      // detected the stale state, no further log needed.
+      return null;
+    }
+    if (linked.isDefinitionDisabled()) {
+      CustomPortalsFoxified.LOGGER.info(
+          "{} linked portal {} disabled-def, returning null", LOG_PREFIX_DEST, linked.getId());
+      return null;
+    }
 
     ServerLevel destLevel = level.getServer().getLevel(portal.getLinkedDimension());
     if (destLevel == null) {
       CustomPortalsFoxified.LOGGER.warn(
-          "Linked dimension {} not found", portal.getLinkedDimension());
+          "{} linked dimension {} not found", LOG_PREFIX_DEST, portal.getLinkedDimension());
       return null;
     }
-
-    CustomPortal linked =
-        PortalSavedData.registry(destLevel).getPortalById(portal.getLinkedPortalId());
-    if (linked == null) {
-      CustomPortalsFoxified.LOGGER.warn(
-          "Linked portal {} not found in {}",
-          portal.getLinkedPortalId(),
-          portal.getLinkedDimension());
-      return null;
-    }
-    if (linked.isDefinitionDisabled()) return null;
 
     // Vanilla-style safe exit positioning: compute source/dest portal rectangles,
     // map the entity's relative position from source into destination, then apply

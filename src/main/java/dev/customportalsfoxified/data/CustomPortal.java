@@ -1,6 +1,7 @@
 package dev.customportalsfoxified.data;
 
 import dev.customportalsfoxified.config.CPConfig;
+import dev.customportalsfoxified.portal.PortalDefinition;
 import dev.customportalsfoxified.portal.PortalDefinitions;
 import java.util.Collections;
 import java.util.HashSet;
@@ -167,6 +168,13 @@ public class CustomPortal {
     return linkedPortalId != null;
   }
 
+  /** Diagnostic-friendly summary of the link target, or {@code "unlinked"}. */
+  public String linkDescriptor() {
+    return linkedPortalId == null
+        ? "unlinked"
+        : linkedPortalId + "@" + linkedDimension.location();
+  }
+
   public boolean isRedstoneDisabled() {
     return redstoneDisabled;
   }
@@ -242,17 +250,20 @@ public class CustomPortal {
   }
 
   /**
-   * Checks compatibility (color, frame, dimension rules, range) without considering link state.
-   * Used for initial linking (via canLinkWith) and for revalidating existing links after rune
-   * changes.
+   * Compatibility check (frame, definition/color, dimension rules, range) without
+   * considering link state. Counterpart-route portals bypass gate-rune and range
+   * checks — the route owns dimension semantics and coord-scale mapping.
    */
   public boolean isCompatibleWith(CustomPortal other) {
     if (this.id.equals(other.id)) return false;
     if (this.definitionDisabled || other.definitionDisabled) return false;
     if (!hasMatchingPortalType(other)) return false;
 
-    if (PortalDefinitions.areDefinitionsCompatibleForLink(this, other)) {
-      return true;
+    PortalDefinition definition =
+        this.definitionId != null ? PortalDefinitions.get(this.definitionId) : null;
+    if (definition != null && definition.usesCounterpartRoute()) {
+      PortalDefinition.CounterpartRoute route = definition.counterpartRoute();
+      return route != null && route.supportsDimensionPair(this.dimension, other.dimension);
     }
 
     // cross-dimension requires gate rune on at least one side
@@ -265,13 +276,20 @@ public class CustomPortal {
     return isInRange(other);
   }
 
+  /**
+   * Two portals share a portal type only when their definition (or legacy color)
+   * AND frame material match. Frame is required even for definition-based portals
+   * because a single definition can match multiple frame blocks (e.g. the built-in
+   * "any frame" definitions), and physically different frames must not link.
+   */
   private boolean hasMatchingPortalType(CustomPortal other) {
+    if (!this.frameMaterial.equals(other.frameMaterial)) return false;
+
     if (this.definitionId != null || other.definitionId != null) {
       return this.definitionId != null && this.definitionId.equals(other.definitionId);
     }
 
-    if (this.color != other.color) return false;
-    return this.frameMaterial.equals(other.frameMaterial);
+    return this.color == other.color;
   }
 
   private boolean isInRange(CustomPortal other) {
