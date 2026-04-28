@@ -7,6 +7,7 @@ import dev.customportalsfoxified.config.CPConfig;
 import dev.customportalsfoxified.data.CustomPortal;
 import dev.customportalsfoxified.data.PortalSavedData;
 import dev.customportalsfoxified.network.SyncPortalColorPayload;
+import dev.customportalsfoxified.network.MapPortalSnapshotSync;
 import dev.customportalsfoxified.portal.PortalDefinition;
 import dev.customportalsfoxified.portal.PortalDefinitionReloadListener;
 import dev.customportalsfoxified.portal.PortalDefinitions;
@@ -32,6 +33,7 @@ import xyz.kwahson.core.config.SafeConfig;
 public class PortalEventHandler {
 
   private static boolean commonConfigValidated;
+  private static int mapPortalSyncTicks;
 
   @SubscribeEvent
   public static void onServerTick(ServerTickEvent.Pre event) {
@@ -43,6 +45,12 @@ public class PortalEventHandler {
 
     if (PortalDefinitions.consumeValidationPending()) {
       revalidatePortals(event.getServer());
+      MapPortalSnapshotSync.sendToInterestedPlayers(event.getServer());
+    }
+
+    if (++mapPortalSyncTicks >= 40) {
+      mapPortalSyncTicks = 0;
+      MapPortalSnapshotSync.sendToInterestedPlayers(event.getServer());
     }
   }
 
@@ -53,6 +61,8 @@ public class PortalEventHandler {
     commonConfigValidated = false;
     PortalDefinitions.clearDatapackDefinitions();
     PortalDefinitions.clearValidationPending();
+    MapPortalSnapshotSync.clearSubscriptions();
+    mapPortalSyncTicks = 0;
   }
 
   // NOTE: NeoForge bug #2510
@@ -65,6 +75,21 @@ public class PortalEventHandler {
       if (color >= 0) {
         PacketDistributor.sendToPlayer(sp, new SyncPortalColorPayload(color));
       }
+      MapPortalSnapshotSync.sendTo(sp);
+    }
+  }
+
+  @SubscribeEvent
+  public static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
+    if (event.getEntity() instanceof ServerPlayer sp) {
+      MapPortalSnapshotSync.sendTo(sp);
+    }
+  }
+
+  @SubscribeEvent
+  public static void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
+    if (event.getEntity() instanceof ServerPlayer sp) {
+      MapPortalSnapshotSync.remove(sp);
     }
   }
 

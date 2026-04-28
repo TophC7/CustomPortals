@@ -2,6 +2,8 @@ package dev.customportalsfoxified;
 
 import dev.customportalsfoxified.config.CPConfig;
 import dev.customportalsfoxified.config.CPConfigScreen;
+import dev.customportalsfoxified.network.MapPortalSubscriptionPayload;
+import dev.customportalsfoxified.network.MapPortalSnapshotsPayload;
 import dev.customportalsfoxified.network.SyncPortalColorPayload;
 import dev.customportalsfoxified.particle.ModParticles;
 import dev.customportalsfoxified.portal.PortalDefinitions;
@@ -47,5 +49,13 @@ public class CustomPortalsFoxified {
         SyncPortalColorPayload.TYPE,
         SyncPortalColorPayload.STREAM_CODEC,
         SyncPortalColorPayload::handle);
+    registrar.optional().playToClient(
+        MapPortalSnapshotsPayload.TYPE,
+        MapPortalSnapshotsPayload.STREAM_CODEC,
+        MapPortalSnapshotsPayload::handle);
+    registrar.playToServer(
+        MapPortalSubscriptionPayload.TYPE,
+        MapPortalSubscriptionPayload.STREAM_CODEC,
+        MapPortalSubscriptionPayload::handle);
   }
 }

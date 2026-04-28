@@ -6,6 +6,7 @@ import dev.customportalsfoxified.ModItems;
 import dev.customportalsfoxified.config.CPConfig;
 import dev.customportalsfoxified.data.CustomPortal;
 import dev.customportalsfoxified.data.PortalSavedData;
+import dev.customportalsfoxified.network.MapPortalSnapshotSync;
 import dev.customportalsfoxified.network.SyncPortalColorPayload;
 import dev.customportalsfoxified.particle.ColoredPortalParticleOptions;
 import dev.customportalsfoxified.portal.PortalDefinition;
@@ -139,7 +140,10 @@ public class CustomPortalBlock extends HalfTransparentBlock
     PortalDefinition definition =
         portal.getDefinitionId() != null ? PortalDefinitions.get(portal.getDefinitionId()) : null;
     if (definition != null && definition.usesCounterpartRoute() && !portal.isLinked()) {
-      PortalLinkHelper.tryResolveLink(level, portal);
+      CustomPortal linked = PortalLinkHelper.tryResolveLink(level, portal);
+      if (linked != null) {
+        MapPortalSnapshotSync.sendToInterestedPlayers(level.getServer());
+      }
     }
     if (!portal.isLinked()) return null;
 
@@ -419,6 +423,7 @@ public class CustomPortalBlock extends HalfTransparentBlock
         // from cascaded onRemove calls won't find this portal again
         data.getRegistry().removeAndRelink(portal, serverLevel.getServer());
         data.setDirty();
+        MapPortalSnapshotSync.sendToInterestedPlayers(serverLevel.getServer());
 
         // snapshot to avoid iterating a set that cascade removals might touch
         for (BlockPos portalPos : new ArrayList<>(portal.getPortalBlocks())) {
@@ -584,6 +589,7 @@ public class CustomPortalBlock extends HalfTransparentBlock
       }
       updateLitState(serverLevel, portal);
       data.setDirty();
+      MapPortalSnapshotSync.sendToInterestedPlayers(serverLevel.getServer());
 
     } else if (!hasSignal && portal.isRedstoneDisabled()) {
       // redstone removed: clear disabled flag, try to relink
@@ -591,6 +597,7 @@ public class CustomPortalBlock extends HalfTransparentBlock
       PortalLinkHelper.tryResolveLink(serverLevel, portal);
       updateLitState(serverLevel, portal);
       data.setDirty();
+      MapPortalSnapshotSync.sendToInterestedPlayers(serverLevel.getServer());
     }
   }
 

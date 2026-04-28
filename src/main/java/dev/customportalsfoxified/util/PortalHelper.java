@@ -8,6 +8,7 @@ import dev.customportalsfoxified.config.CPConfig;
 import dev.customportalsfoxified.data.CustomPortal;
 import dev.customportalsfoxified.data.PortalSavedData;
 import dev.customportalsfoxified.data.RuneType;
+import dev.customportalsfoxified.network.MapPortalSnapshotSync;
 import dev.customportalsfoxified.portal.PortalDefinition;
 import java.util.*;
 import net.minecraft.core.BlockPos;
@@ -126,6 +127,11 @@ public class PortalHelper {
     }
 
     data.setDirty();
+    MapPortalSnapshotSync.sendAround(level, portal);
+    if (linked != null) {
+      ServerLevel linkedLevel = level.getServer().getLevel(linked.getDimension());
+      if (linkedLevel != null) MapPortalSnapshotSync.sendAround(linkedLevel, linked);
+    }
 
     return true;
   }

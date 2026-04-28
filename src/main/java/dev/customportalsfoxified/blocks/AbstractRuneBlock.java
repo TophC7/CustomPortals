@@ -3,6 +3,7 @@ package dev.customportalsfoxified.blocks;
 import dev.customportalsfoxified.data.CustomPortal;
 import dev.customportalsfoxified.data.PortalSavedData;
 import dev.customportalsfoxified.data.RuneType;
+import dev.customportalsfoxified.network.MapPortalSnapshotSync;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
@@ -102,6 +103,7 @@ public abstract class AbstractRuneBlock extends FaceAttachedHorizontalDirectiona
           data.getRegistry().tryLinkAcrossAll(portal, level.getServer());
         }
         data.setDirty();
+        MapPortalSnapshotSync.sendToInterestedPlayers(level.getServer());
         return;
       }
     }
@@ -134,6 +136,7 @@ public abstract class AbstractRuneBlock extends FaceAttachedHorizontalDirectiona
         }
 
         data.setDirty();
+        MapPortalSnapshotSync.sendToInterestedPlayers(level.getServer());
         return;
       }
     }
