@@ -66,10 +66,26 @@
 
             ${pkgs.gradle}/bin/gradle --no-daemon jar
 
+            mod_version="$(sed -n "s/^mod_version=//p" gradle.properties | head -n 1)"
+            if [ -z "$mod_version" ]; then
+              echo "Missing mod_version in gradle.properties" >&2
+              exit 1
+            fi
+
+            rm -rf dist
             mkdir -p dist
-            find build/libs -maxdepth 1 -name "*.jar" \
-              -not -name "*-sources.jar" \
-              -exec cp {} dist/ \;
+            for jar in build/libs/*-"$mod_version".jar; do
+              [ -e "$jar" ] || continue
+              case "$jar" in
+                *-sources.jar) continue ;;
+              esac
+              cp "$jar" dist/
+            done
+
+            if ! ls dist/*.jar >/dev/null 2>&1; then
+              echo "No current jar found for version $mod_version" >&2
+              exit 1
+            fi
 
             echo "Built:"
             ls dist/*.jar
